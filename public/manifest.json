@@ -1,0 +1,7 @@
+{
+  "name": "Shopify App",
+  "short_name": "Shopify App",
+  "icons": [],
+  "start_url": "/",
+  "display": "standalone"
+}
