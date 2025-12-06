@@ -5,6 +5,7 @@ import { config } from './config/env';
 import { prisma } from './config/database';
 import { redis } from './config/redis';
 import { logger } from './lib/logger';
+import { initializeSentry, sentryErrorMiddleware, flushSentry } from './config/sentry';
 import { 
   requestIdMiddleware,
   errorMiddleware, 
@@ -14,13 +15,16 @@ import {
 import { shopifyRouter } from './routes/shopify';
 import { webhooksRouter } from './routes/webhooks';
 import { apiRouter } from './routes/api';
-import { segmentsRouter } from './routes/segments.routes';
-import { analyticsRouter } from './routes/analytics.routes';
-import { ordersRouter } from './routes/orders.routes';
+import { v1Router } from './routes/v1';
+import { swaggerRouter } from './routes/swagger';
 import { closeAllQueues, getQueuesHealth } from './services/queue';
+import { initializeScheduler, closeScheduler, getSchedulerHealth } from './services/scheduler';
 
 const app: Application = express();
 const log = logger.child({ module: 'server' });
+
+// Initialize Sentry FIRST (before other middleware)
+initializeSentry(app);
 
 // Trust proxy for rate limiting behind reverse proxy
 app.set('trust proxy', 1);
@@ -89,6 +93,9 @@ app.get('/health', async (req: Request, res: Response) => {
     // Get queue health
     const queuesHealth = await getQueuesHealth();
     
+    // Get scheduler health
+    const schedulerHealth = await getSchedulerHealth();
+    
     res.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -97,6 +104,7 @@ app.get('/health', async (req: Request, res: Response) => {
         database: 'connected',
         redis: redisStatus === 'ready' ? 'connected' : redisStatus,
         queues: queuesHealth,
+        scheduler: schedulerHealth,
       },
     });
   } catch (error) {
@@ -122,13 +130,21 @@ app.get('/ready', async (req: Request, res: Response) => {
 // Routes
 app.use('/auth', shopifyRouter);
 app.use('/webhooks', webhooksRouter);
+
+// API Documentation (Swagger UI)
+app.use('/api/docs', swaggerRouter);
+
+// Legacy API routes (for backward compatibility)
 app.use('/api', apiRouter);
-app.use('/api/segments', segmentsRouter);
-app.use('/api/analytics', analyticsRouter);
-app.use('/api/orders', ordersRouter);
+
+// Versioned API (v1)
+app.use('/api/v1', v1Router);
 
 // 404 handler
 app.use(notFoundMiddleware);
+
+// Sentry error middleware (before general error handler)
+app.use(sentryErrorMiddleware);
 
 // Error handling middleware (must be last)
 app.use(errorMiddleware);
@@ -136,6 +152,12 @@ app.use(errorMiddleware);
 // Graceful shutdown
 async function gracefulShutdown(signal: string): Promise<void> {
   log.info({ signal }, 'Received shutdown signal');
+  
+  // Flush Sentry events
+  await flushSentry();
+  
+  // Close scheduler
+  await closeScheduler();
   
   // Close queues
   await closeAllQueues();
@@ -163,14 +185,28 @@ process.on('unhandledRejection', (reason) => {
   log.error({ reason }, 'Unhandled rejection');
 });
 
-// Start server
-const PORT = config.port;
-app.listen(PORT, () => {
-  log.info({ port: PORT, env: config.nodeEnv }, 'Server started');
-  log.info({
-    database: 'PostgreSQL via Prisma',
-    redis: config.redisUrl ? 'Connected' : 'Not configured',
-  }, 'Services');
-});
+// Initialize scheduler and start server
+async function startServer(): Promise<void> {
+  try {
+    // Initialize scheduled jobs
+    await initializeScheduler();
+    
+    // Start HTTP server
+    const PORT = config.port;
+    app.listen(PORT, () => {
+      log.info({ port: PORT, env: config.nodeEnv }, 'Server started');
+      log.info({
+        database: 'PostgreSQL via Prisma',
+        redis: config.redisUrl ? 'Connected' : 'Not configured',
+        sentry: config.sentryDsn ? 'Enabled' : 'Disabled',
+      }, 'Services');
+    });
+  } catch (error) {
+    log.error({ error }, 'Failed to start server');
+    process.exit(1);
+  }
+}
+
+startServer();
 
 export default app;

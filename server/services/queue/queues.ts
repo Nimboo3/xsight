@@ -1,6 +1,6 @@
-import { Queue, QueueOptions, JobsOptions } from 'bullmq';
-import { redis } from '../config/redis';
-import { logger } from '../lib/logger';
+import { Queue, QueueOptions } from 'bullmq';
+import { redis } from '../../config/redis';
+import { logger } from '../../lib/logger';
 
 const log = logger.child({ module: 'queues' });
 

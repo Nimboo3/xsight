@@ -2,10 +2,15 @@ import Redis from 'ioredis';
 import { env } from './env';
 import { logger } from '../lib/logger';
 
+// Determine if TLS is needed (Upstash and most cloud Redis require TLS)
+const redisUrl = env.REDIS_URL;
+const useTls = redisUrl.startsWith('rediss://') || redisUrl.includes('upstash.io');
+
 // Create Redis connection
 export const redis = new Redis(env.REDIS_URL, {
   maxRetriesPerRequest: null, // Required for BullMQ
   enableReadyCheck: false,
+  tls: useTls ? {} : undefined, // Enable TLS for cloud Redis providers
   retryStrategy: (times: number) => {
     if (times > 10) {
       logger.error('Redis connection failed after 10 retries');

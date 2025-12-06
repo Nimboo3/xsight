@@ -13,7 +13,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url('DATABASE_URL must be a valid PostgreSQL connection string'),
   
   // Redis
-  REDIS_URL: z.string().url('REDIS_URL must be a valid Redis connection string'),
+  REDIS_URL: z.string().url('REDIS_URL must be a valid Redis connection string (redis:// or rediss://)'),
   
   // Shopify
   SHOPIFY_API_KEY: z.string().min(1, 'SHOPIFY_API_KEY is required'),
@@ -27,6 +27,9 @@ const envSchema = z.object({
   
   // Frontend
   NEXT_PUBLIC_API_URL: z.string().url().optional(),
+  
+  // Monitoring (Optional)
+  SENTRY_DSN: z.string().url().optional(),
 });
 
 // Parse and validate environment
@@ -62,6 +65,7 @@ export const config = {
     appUrl: env.SHOPIFY_APP_URL,
     apiVersion: '2024-10' as const,
   },
+  shopifyAppUrl: env.SHOPIFY_APP_URL,
   
   // Security
   jwtSecret: env.JWT_SECRET,
@@ -69,6 +73,9 @@ export const config = {
   
   // Frontend
   frontendUrl: env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  
+  // Monitoring
+  sentryDsn: env.SENTRY_DSN,
 };
 
 export type Config = typeof config;

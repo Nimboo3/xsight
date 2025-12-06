@@ -522,3 +522,139 @@ analyticsRouter.get('/customers/churn-risk', async (req: Request, res: Response,
     next(error);
   }
 });
+
+// ============================================================================
+// Churn Prediction (ML-ready, currently using decay formula)
+// ============================================================================
+
+import {
+  calculateChurnProbability,
+  calculateChurnForTenant,
+  getChurnRiskCustomers,
+} from '../services/analytics/churn.service';
+
+/**
+ * GET /api/analytics/churn/distribution
+ * Get churn risk distribution across all customers
+ */
+analyticsRouter.get('/churn/distribution', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tenantId = req.tenant!.id;
+    
+    // Calculate distribution by running churn analysis
+    const result = await calculateChurnForTenant(tenantId);
+    
+    res.json({
+      tenantId,
+      totalCustomers: result.totalProcessed,
+      distribution: {
+        critical: result.criticalCount,
+        high: result.highCount,
+        medium: result.mediumCount,
+        low: result.lowCount,
+      },
+      percentages: {
+        critical: result.totalProcessed > 0 ? (result.criticalCount / result.totalProcessed * 100).toFixed(1) : '0',
+        high: result.totalProcessed > 0 ? (result.highCount / result.totalProcessed * 100).toFixed(1) : '0',
+        medium: result.totalProcessed > 0 ? (result.mediumCount / result.totalProcessed * 100).toFixed(1) : '0',
+        low: result.totalProcessed > 0 ? (result.lowCount / result.totalProcessed * 100).toFixed(1) : '0',
+      },
+      calculatedAt: new Date().toISOString(),
+      durationMs: result.duration,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/analytics/churn/high-risk
+ * Get customers with high churn probability
+ */
+analyticsRouter.get('/churn/high-risk', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tenantId = req.tenant!.id;
+    const { threshold = '0.6', limit = '50', highValueOnly = 'false' } = req.query;
+    
+    const minProbability = parseFloat(threshold as string);
+    const limitNum = parseInt(limit as string, 10);
+    const includeHighValueOnly = highValueOnly === 'true';
+
+    const customers = await getChurnRiskCustomers(tenantId, {
+      minProbability,
+      limit: limitNum,
+      includeHighValueOnly,
+    });
+    
+    res.json({
+      customers,
+      total: customers.length,
+      filters: {
+        minProbability,
+        limit: limitNum,
+        highValueOnly: includeHighValueOnly,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/analytics/churn/calculate
+ * Calculate churn probability for all customers (batch job)
+ */
+analyticsRouter.post('/churn/calculate', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tenantId = req.tenant!.id;
+
+    const result = await calculateChurnForTenant(tenantId);
+    
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/analytics/churn/predict/:customerId
+ * Get churn prediction for a specific customer
+ */
+analyticsRouter.get('/churn/predict/:customerId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tenantId = req.tenant!.id;
+    const { customerId } = req.params;
+
+    const prediction = await calculateChurnProbability(tenantId, customerId);
+
+    if (!prediction) {
+      return res.status(404).json({ error: 'Customer not found or no order history' });
+    }
+
+    const customer = await prisma.customer.findFirst({
+      where: { id: customerId, tenantId },
+      select: {
+        email: true,
+        firstName: true,
+        lastName: true,
+        rfmSegment: true,
+        totalSpent: true,
+        ordersCount: true,
+      },
+    });
+
+    res.json({
+      customerId,
+      customer: customer ? {
+        ...customer,
+        totalSpent: Number(customer.totalSpent),
+      } : null,
+      prediction,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
