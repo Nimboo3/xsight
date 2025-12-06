@@ -1,9 +1,15 @@
 export { requestIdMiddleware } from './requestId.middleware';
 export { 
-  tenantMiddleware, 
-  optionalTenantMiddleware, 
   verifyShopifyRequest 
 } from './tenant.middleware';
+export {
+  authMiddleware,
+  tenantMiddleware,
+  authWithTenantMiddleware,
+  optionalAuthMiddleware,
+  type UserInfo,
+  type TenantInfo,
+} from './auth.middleware';
 export { 
   errorMiddleware, 
   notFoundMiddleware 

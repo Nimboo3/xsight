@@ -46,6 +46,23 @@ export function RevenueChart({
     );
   }
 
+  // Handle empty data
+  if (!data || data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+          {description && <CardDescription>{description}</CardDescription>}
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+            No revenue data available for this period
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // Format data for chart
   const chartData = data.map(item => ({
     ...item,

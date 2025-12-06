@@ -11,13 +11,14 @@ import { analyticsRouter } from './analytics.routes';
 import { ordersRouter } from './orders.routes';
 import { customersRouter } from './customers.routes';
 import { tenantsRouter } from './tenants.routes';
-import { tenantMiddleware } from '../middleware';
+import { hybridAuthMiddleware } from '../middleware';
 import { tenantRateLimitMiddleware } from '../middleware/tenantRateLimit.middleware';
 
 export const v1Router = Router();
 
-// Apply tenant middleware and rate limiting to all v1 routes
-v1Router.use(tenantMiddleware);
+// Apply hybrid authentication to all v1 routes
+// This supports both Shopify session tokens and JWT cookies
+v1Router.use(hybridAuthMiddleware);
 v1Router.use(tenantRateLimitMiddleware);
 
 // Mount sub-routers

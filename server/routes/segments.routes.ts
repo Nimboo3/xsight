@@ -83,8 +83,14 @@ segmentsRouter.get('/', async (req: Request, res: Response, next: NextFunction) 
       sortOrder: sortOrder as 'asc' | 'desc' | undefined,
     });
 
+    // Map customerCount to memberCount for frontend compatibility
+    const segments = result.segments.map(s => ({
+      ...s,
+      memberCount: s.customerCount || 0,
+    }));
+
     res.json({
-      segments: result.segments,
+      segments,
       total: result.total,
       limit: limit ? parseInt(limit as string, 10) : 50,
       offset: offset ? parseInt(offset as string, 10) : 0,

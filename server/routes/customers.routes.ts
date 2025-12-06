@@ -92,14 +92,14 @@ customersRouter.get('/', async (req: Request, res: Response, next: NextFunction)
     ]);
 
     res.json({
-      success: true,
-      data: customers,
+      customers: customers,
       pagination: {
         page,
         limit,
         total,
         totalPages: Math.ceil(total / limit),
-        hasMore: skip + customers.length < total,
+        hasNextPage: skip + customers.length < total,
+        hasPrevPage: page > 1,
       },
     });
   } catch (error) {

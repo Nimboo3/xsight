@@ -12,6 +12,30 @@ datasource db {
 }
 
 // ============================================================================
+// USER AUTHENTICATION
+// ============================================================================
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @db.Text // Argon2 hash
+  name          String?
+  
+  // Email verification (optional for MVP)
+  emailVerified Boolean   @default(false)
+  
+  // Relationships
+  tenant        Tenant?   // 1:1 - User can have one tenant (store)
+  
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([email])
+  @@map("users")
+}
+
+// ============================================================================
 // MULTI-TENANCY CORE
 // ============================================================================
 
@@ -23,6 +47,10 @@ model Tenant {
   accessToken       String       @db.Text // AES-256 encrypted
   accessTokenHash   String       // SHA-256 for quick lookup
   scope             String[]     // Granted OAuth scopes
+  
+  // User ownership (1:1)
+  userId            String?      @unique
+  user              User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   
   // Subscription & limits
   status            TenantStatus @default(ACTIVE)
@@ -47,6 +75,7 @@ model Tenant {
   
   @@index([shopifyDomain])
   @@index([status, planTier])
+  @@index([userId])
   @@map("tenants")
 }
 
@@ -113,8 +142,10 @@ model Customer {
   @@index([tenantId, email])
   @@index([tenantId, totalSpent(sort: Desc)])
   @@index([tenantId, lastOrderDate(sort: Desc)])
+  @@index([tenantId, firstOrderDate(sort: Desc)]) // For cohort analysis
   @@index([tenantId, rfmSegment])
   @@index([tenantId, isHighValue])
+  @@index([tenantId, isChurnRisk]) // For churn risk queries
   @@map("customers")
 }
 
@@ -447,10 +478,10 @@ enum JobStatus {
 }
 
 // ============================================================================
-// LEGACY SESSION (Keep for Shopify App Bridge compatibility)
+// SHOPIFY SESSION (For OAuth flow, renamed from Session)
 // ============================================================================
 
-model Session {
+model ShopifySession {
   id            String    @id
   shop          String
   state         String
@@ -458,7 +489,7 @@ model Session {
   scope         String?
   expires       DateTime?
   accessToken   String
-  userId        BigInt?
+  userId        BigInt?   // Shopify user ID (not our User)
   firstName     String?
   lastName      String?
   email         String?
@@ -468,5 +499,5 @@ model Session {
   emailVerified Boolean?  @default(false)
 
   @@index([shop])
-  @@map("sessions")
+  @@map("shopify_sessions")
 }

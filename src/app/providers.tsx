@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, Suspense } from 'react';
 import { ShopProvider } from '@/hooks/use-shop';
+import { AuthProvider } from '@/hooks/use-auth';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -22,11 +23,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
-        <ShopProvider>
-          <TooltipProvider>
-            {children}
-          </TooltipProvider>
-        </ShopProvider>
+        <AuthProvider>
+          <ShopProvider>
+            <TooltipProvider>
+              {children}
+            </TooltipProvider>
+          </ShopProvider>
+        </AuthProvider>
       </Suspense>
     </QueryClientProvider>
   );

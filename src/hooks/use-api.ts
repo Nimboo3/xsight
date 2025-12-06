@@ -3,9 +3,9 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { useShop } from './use-shop';
 
-// API base URL - uses v1 prefix for all data endpoints
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-const API_V1 = `${API_BASE_URL}/api/v1`;
+// API base URL - uses relative URLs for Vercel deployment
+const API_BASE_URL = '';
+const API_V1 = '/api/v1';
 
 // ============================================================================
 // TYPES
@@ -206,6 +206,8 @@ async function fetchApi<T>(
     ...(options.headers as Record<string, string>),
   };
 
+  // X-Shopify-Shop-Domain is now optional since we use JWT/session tokens for auth
+  // But we still include it for backwards compatibility with Shopify admin links
   if (shop) {
     headers['X-Shopify-Shop-Domain'] = shop;
   }
@@ -216,9 +218,15 @@ async function fetchApi<T>(
   const response = await fetch(url, {
     ...options,
     headers,
+    credentials: 'include', // Required for JWT cookie auth
   });
 
   if (!response.ok) {
+    // Handle auth errors specifically
+    if (response.status === 401) {
+      // Could redirect to login here or let component handle it
+      throw new Error('Authentication required. Please log in.');
+    }
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(error.error || `API error: ${response.status}`);
   }

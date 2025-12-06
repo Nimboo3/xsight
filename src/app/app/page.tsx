@@ -24,10 +24,21 @@ import { formatCurrency, formatNumber } from '@/lib/utils';
 
 type DateRange = '7d' | '30d' | '90d' | '365d' | 'custom';
 
+// Helper to get initial date range params - default to last 365 days to ensure we see data
+function getInitialDateParams(): { startDate: string; endDate: string } {
+  const now = new Date();
+  const startDate = new Date(now);
+  startDate.setFullYear(startDate.getFullYear() - 1); // Last year by default
+  return {
+    startDate: startDate.toISOString(),
+    endDate: now.toISOString(),
+  };
+}
+
 export default function DashboardPage() {
   const { shop, isLoading: shopLoading, error: shopError } = useShop();
-  const [dateRange, setDateRange] = useState<DateRange>('30d');
-  const [dateParams, setDateParams] = useState<{ startDate?: string; endDate?: string }>({});
+  const [dateRange, setDateRange] = useState<DateRange>('365d');
+  const [dateParams, setDateParams] = useState<{ startDate?: string; endDate?: string }>(getInitialDateParams);
 
   // Fetch data
   const {

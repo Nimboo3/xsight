@@ -1,6 +1,7 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { config } from './config/env';
 import { prisma } from './config/database';
 import { redis } from './config/redis';
@@ -17,6 +18,7 @@ import { webhooksRouter } from './routes/webhooks';
 import { apiRouter } from './routes/api';
 import { v1Router } from './routes/v1';
 import { swaggerRouter } from './routes/swagger';
+import { authRouter } from './routes/auth.routes';
 import { closeAllQueues, getQueuesHealth } from './services/queue';
 import { initializeScheduler, closeScheduler, getSchedulerHealth } from './services/scheduler';
 
@@ -78,6 +80,9 @@ app.use((req: Request, res: Response, next) => {
 // URL encoded bodies
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Parse cookies
+app.use(cookieParser());
+
 // Default rate limiting for all routes
 app.use(defaultRateLimiter);
 
@@ -130,6 +135,9 @@ app.get('/ready', async (req: Request, res: Response) => {
 // Routes
 app.use('/auth', shopifyRouter);
 app.use('/webhooks', webhooksRouter);
+
+// Auth API routes (login, logout, session check)
+app.use('/api/auth', authRouter);
 
 // API Documentation (Swagger UI)
 app.use('/api/docs', swaggerRouter);

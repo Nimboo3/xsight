@@ -1,4 +1,4 @@
-// File: C:\Users\Dell\Desktop\shopify-app-template-react-router-main\shopify-app-template-react-router-main\src\app\page.tsx
+// File: c:\Users\Dell\Desktop\shopify-app-template-react-router-main\shopify-app-template-react-router-main\src\app\page.tsx
 import * as entry from '../../../src/app/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

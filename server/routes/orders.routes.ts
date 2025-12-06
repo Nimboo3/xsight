@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
 import { logger } from '../lib/logger';
+import { cached, buildCacheKey, TTL } from '../lib/cache';
 import { tenantMiddleware } from '../middleware';
 
 const log = logger.child({ module: 'orders-routes' });
@@ -343,52 +344,61 @@ ordersRouter.get('/stats/daily', async (req: Request, res: Response, next: NextF
       endDate.setTime(new Date(req.query.endDate as string).getTime());
     }
 
-    // Raw SQL for daily aggregation
-    const dailyStats = await prisma.$queryRaw<Array<{
-      date: Date;
-      count: bigint;
-      revenue: number;
-    }>>`
-      SELECT 
-        DATE("createdAt") as date,
-        COUNT(*) as count,
-        COALESCE(SUM("totalPrice"), 0) as revenue
-      FROM "Order"
-      WHERE "tenantId" = ${tenantId}
-        AND "createdAt" >= ${startDate}
-        AND "createdAt" <= ${endDate}
-      GROUP BY DATE("createdAt")
-      ORDER BY date ASC
-    `;
+    // Cache key includes date range
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+    const cacheKey = buildCacheKey('orders:daily', tenantId, startStr, endStr);
 
-    // Fill in missing dates with zeros
-    const dateMap = new Map<string, { count: number; revenue: number }>();
-    dailyStats.forEach(row => {
-      const dateStr = new Date(row.date).toISOString().split('T')[0];
-      dateMap.set(dateStr, {
-        count: Number(row.count),
-        revenue: Number(row.revenue),
+    const result = await cached(cacheKey, TTL.MEDIUM, async () => {
+      // Raw SQL for daily aggregation - use orderDate for the actual order date
+      const dailyStats = await prisma.$queryRaw<Array<{
+        date: Date;
+        count: bigint;
+        revenue: number;
+      }>>`
+        SELECT 
+          DATE("orderDate") as date,
+          COUNT(*) as count,
+          COALESCE(SUM("totalPrice"), 0) as revenue
+        FROM "Order"
+        WHERE "tenantId" = ${tenantId}
+          AND "orderDate" >= ${startDate}
+          AND "orderDate" <= ${endDate}
+        GROUP BY DATE("orderDate")
+        ORDER BY date ASC
+      `;
+
+      // Fill in missing dates with zeros
+      const dateMap = new Map<string, { count: number; revenue: number }>();
+      dailyStats.forEach(row => {
+        const dateStr = new Date(row.date).toISOString().split('T')[0];
+        dateMap.set(dateStr, {
+          count: Number(row.count),
+          revenue: Number(row.revenue),
+        });
       });
+
+      const data: Array<{ date: string; orders: number; revenue: number }> = [];
+      const current = new Date(startDate);
+      while (current <= endDate) {
+        const dateStr = current.toISOString().split('T')[0];
+        const stats = dateMap.get(dateStr) || { count: 0, revenue: 0 };
+        data.push({
+          date: dateStr,
+          orders: stats.count,
+          revenue: stats.revenue,
+        });
+        current.setDate(current.getDate() + 1);
+      }
+
+      return {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        data,
+      };
     });
 
-    const result: Array<{ date: string; orders: number; revenue: number }> = [];
-    const current = new Date(startDate);
-    while (current <= endDate) {
-      const dateStr = current.toISOString().split('T')[0];
-      const data = dateMap.get(dateStr) || { count: 0, revenue: 0 };
-      result.push({
-        date: dateStr,
-        orders: data.count,
-        revenue: data.revenue,
-      });
-      current.setDate(current.getDate() + 1);
-    }
-
-    res.json({
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-      data: result,
-    });
+    res.json(result);
   } catch (error) {
     next(error);
   }

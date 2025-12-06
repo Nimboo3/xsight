@@ -3,6 +3,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+// Use relative URLs for API calls
+const API_BASE = '';
+
 interface ShopContextValue {
   /** The shop domain (e.g., "my-store.myshopify.com") */
   shop: string | null;
@@ -27,8 +30,9 @@ interface ShopProviderProps {
  * 
  * The shop domain is determined in the following priority:
  * 1. URL search params (?shop=...)
- * 2. Session storage (persisted from previous visit)
- * 3. Manual override via setShop()
+ * 2. Auth context (from JWT cookie via /api/auth/me)
+ * 3. Session storage (persisted from previous visit)
+ * 4. Manual override via setShop()
  * 
  * This follows best practices for multi-tenant Shopify apps.
  */
@@ -38,45 +42,67 @@ export function ShopProvider({ children }: ShopProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize shop from URL params or session storage
+  // Initialize shop from URL params, auth context, or session storage
   useEffect(() => {
-    setIsLoading(true);
-    setError(null);
+    const initializeShop = async () => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      // Priority 1: URL search params
-      const shopFromUrl = searchParams.get('shop');
-      if (shopFromUrl) {
-        // Validate shop domain format
-        if (isValidShopDomain(shopFromUrl)) {
-          setShopState(shopFromUrl);
-          // Persist to session storage
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('shopify_shop', shopFromUrl);
+      try {
+        // Priority 1: URL search params
+        const shopFromUrl = searchParams.get('shop');
+        if (shopFromUrl) {
+          if (isValidShopDomain(shopFromUrl)) {
+            setShopState(shopFromUrl);
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('shopify_shop', shopFromUrl);
+            }
+          } else {
+            setError(`Invalid shop domain: ${shopFromUrl}`);
           }
-        } else {
-          setError(`Invalid shop domain: ${shopFromUrl}`);
-        }
-        setIsLoading(false);
-        return;
-      }
-
-      // Priority 2: Session storage
-      if (typeof window !== 'undefined') {
-        const shopFromStorage = sessionStorage.getItem('shopify_shop');
-        if (shopFromStorage && isValidShopDomain(shopFromStorage)) {
-          setShopState(shopFromStorage);
           setIsLoading(false);
           return;
         }
-      }
 
-      // No shop context available
-      setIsLoading(false);
-    } catch (err) {
-      setError('Failed to initialize shop context');
-      setIsLoading(false);
-    }
+        // Priority 2: Check auth context (JWT cookie)
+        try {
+          const response = await fetch(`${API_BASE}/api/auth/me`, {
+            credentials: 'include',
+          });
+          const data = await response.json();
+          
+          if (data.authenticated && data.tenant?.shopDomain) {
+            setShopState(data.tenant.shopDomain);
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('shopify_shop', data.tenant.shopDomain);
+            }
+            setIsLoading(false);
+            return;
+          }
+        } catch (authError) {
+          // Auth check failed, continue to session storage
+          console.debug('Auth check failed, trying session storage');
+        }
+
+        // Priority 3: Session storage
+        if (typeof window !== 'undefined') {
+          const shopFromStorage = sessionStorage.getItem('shopify_shop');
+          if (shopFromStorage && isValidShopDomain(shopFromStorage)) {
+            setShopState(shopFromStorage);
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // No shop context available
+        setIsLoading(false);
+      } catch (err) {
+        setError('Failed to initialize shop context');
+        setIsLoading(false);
+      }
+    };
+
+    initializeShop();
   }, [searchParams]);
 
   // Manual shop setter

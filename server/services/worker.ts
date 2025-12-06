@@ -2,6 +2,7 @@ import { Worker, Job } from 'bullmq';
 import { redis } from '../config/redis';
 import { prisma } from '../config/database';
 import { logger } from '../lib/logger';
+import { invalidateTenantCache } from '../lib/cache';
 import {
   QUEUE_NAMES,
   WebhookJobData,
@@ -468,6 +469,10 @@ async function processRfmCalculation(job: Job<RfmCalculationJobData>): Promise<v
         { tenantId, updated: result.updated, errors: result.errors },
         'Tenant RFM calculation completed'
       );
+      
+      // Invalidate cache after RFM recalculation
+      await invalidateTenantCache(tenantId);
+      log.info({ tenantId }, 'Tenant cache invalidated after RFM recalculation');
       
       // Refresh all active segments after tenant-wide RFM recalculation
       const segments = await prisma.segment.findMany({
