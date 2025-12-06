@@ -1,10 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import { Store, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 
 export default function LoginPage() {
   const [shop, setShop] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,8 +23,10 @@ export default function LoginPage() {
 
     // Validate shop domain
     const shopDomain = shop.includes('.myshopify.com')
-      ? shop
-      : `${shop}.myshopify.com`;
+      ? shop.toLowerCase().trim()
+      : `${shop.toLowerCase().trim()}.myshopify.com`;
+
+    setIsLoading(true);
 
     try {
       const response = await fetch('/api/auth/login', {
@@ -35,104 +43,98 @@ export default function LoginPage() {
         window.location.href = data.redirectUrl;
       } else if (data.error) {
         setError(data.error);
+        setIsLoading(false);
       }
     } catch (err) {
       setError('Failed to log in. Please try again.');
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="login-page">
-      <div className="login-container">
-        <h1>Log in</h1>
-        <form onSubmit={handleSubmit}>
-          <div className="form-field">
-            <label htmlFor="shop">Shop domain</label>
-            <input
-              id="shop"
-              name="shop"
-              type="text"
-              value={shop}
-              onChange={(e) => setShop(e.target.value)}
-              placeholder="example.myshopify.com"
-              autoComplete="on"
-            />
-            <span className="hint">example.myshopify.com</span>
-            {error && <span className="error">{error}</span>}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
+      <div className="w-full max-w-md">
+        {/* Logo / Brand */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 text-primary mb-4">
+            <Store className="h-8 w-8" />
           </div>
-          <button type="submit" className="submit-button">
-            Log in
-          </button>
-        </form>
-      </div>
+          <h1 className="text-2xl font-bold tracking-tight">Xeno CRM</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Customer data platform for Shopify stores
+          </p>
+        </div>
 
-      <style jsx>{`
-        .login-page {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          min-height: 100vh;
-          padding: 2rem;
-        }
-        .login-container {
-          max-width: 400px;
-          width: 100%;
-          padding: 2rem;
-          background: #fff;
-          border-radius: 8px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-          margin: 0 0 1.5rem;
-          text-align: center;
-        }
-        .form-field {
-          margin-bottom: 1rem;
-        }
-        label {
-          display: block;
-          margin-bottom: 0.5rem;
-          font-weight: 500;
-        }
-        input {
-          width: 100%;
-          padding: 0.75rem;
-          border: 1px solid #ccc;
-          border-radius: 4px;
-          font-size: 1rem;
-        }
-        input:focus {
-          outline: none;
-          border-color: #008060;
-          box-shadow: 0 0 0 2px rgba(0, 128, 96, 0.2);
-        }
-        .hint {
-          display: block;
-          margin-top: 0.25rem;
-          font-size: 0.875rem;
-          color: #666;
-        }
-        .error {
-          display: block;
-          margin-top: 0.25rem;
-          font-size: 0.875rem;
-          color: #d82c0d;
-        }
-        .submit-button {
-          width: 100%;
-          padding: 0.75rem;
-          background-color: #008060;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          font-size: 1rem;
-          cursor: pointer;
-          margin-top: 1rem;
-        }
-        .submit-button:hover {
-          background-color: #006e52;
-        }
-      `}</style>
+        {/* Login Card */}
+        <Card>
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-xl">Connect your store</CardTitle>
+            <CardDescription>
+              Enter your Shopify store domain to get started
+            </CardDescription>
+          </CardHeader>
+          <form onSubmit={handleSubmit}>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="shop">Shop domain</Label>
+                <div className="relative">
+                  <Input
+                    id="shop"
+                    name="shop"
+                    type="text"
+                    value={shop}
+                    onChange={(e) => setShop(e.target.value)}
+                    placeholder="your-store"
+                    autoComplete="on"
+                    disabled={isLoading}
+                    className="pr-32"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    .myshopify.com
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Enter just your store name, e.g., &quot;your-store&quot;
+                </p>
+              </div>
+
+              {error && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  <>
+                    Connect Store
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-muted-foreground mt-6">
+          By connecting, you agree to our{' '}
+          <a href="#" className="underline hover:text-foreground">Terms of Service</a>
+          {' '}and{' '}
+          <a href="#" className="underline hover:text-foreground">Privacy Policy</a>
+        </p>
+      </div>
     </div>
   );
 }

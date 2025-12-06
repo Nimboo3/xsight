@@ -3,7 +3,9 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { useShop } from './use-shop';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+// API base URL - uses v1 prefix for all data endpoints
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_V1 = `${API_BASE_URL}/api/v1`;
 
 // ============================================================================
 // TYPES
@@ -208,7 +210,10 @@ async function fetchApi<T>(
     headers['X-Shopify-Shop-Domain'] = shop;
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  // All data endpoints use API v1
+  const url = `${API_V1}${endpoint}`;
+  
+  const response = await fetch(url, {
     ...options,
     headers,
   });
@@ -230,7 +235,7 @@ export function useRfmDistribution(options?: UseQueryOptions<RfmDistributionResp
 
   return useQuery({
     queryKey: ['rfm', 'distribution', shop],
-    queryFn: () => fetchApi<RfmDistributionResponse>('/api/analytics/rfm/distribution', shop),
+    queryFn: () => fetchApi<RfmDistributionResponse>('/analytics/rfm/distribution', shop),
     enabled: !!shop,
     staleTime: 5 * 60 * 1000, // 5 minutes
     ...options,
@@ -242,7 +247,7 @@ export function useRfmMatrix(options?: UseQueryOptions<RfmMatrixResponse>) {
 
   return useQuery({
     queryKey: ['rfm', 'matrix', shop],
-    queryFn: () => fetchApi<RfmMatrixResponse>('/api/analytics/rfm/matrix', shop),
+    queryFn: () => fetchApi<RfmMatrixResponse>('/analytics/rfm/matrix', shop),
     enabled: !!shop,
     staleTime: 5 * 60 * 1000,
     ...options,
@@ -261,7 +266,7 @@ export function useRevenueTrend(
 
   return useQuery({
     queryKey: ['analytics', 'revenue', shop, params],
-    queryFn: () => fetchApi<RevenueTrendResponse>(`/api/analytics/revenue/trend?${queryParams}`, shop),
+    queryFn: () => fetchApi<RevenueTrendResponse>(`/analytics/revenue/trend?${queryParams}`, shop),
     enabled: !!shop,
     staleTime: 5 * 60 * 1000,
     ...options,
@@ -279,7 +284,7 @@ export function useTopCustomers(
 
   return useQuery({
     queryKey: ['analytics', 'customers', 'top', shop, params],
-    queryFn: () => fetchApi<TopCustomersResponse>(`/api/analytics/customers/top?${queryParams}`, shop),
+    queryFn: () => fetchApi<TopCustomersResponse>(`/analytics/customers/top?${queryParams}`, shop),
     enabled: !!shop,
     staleTime: 5 * 60 * 1000,
     ...options,
@@ -318,7 +323,7 @@ export function useOrders(params?: OrdersQueryParams, options?: UseQueryOptions<
 
   return useQuery({
     queryKey: ['orders', shop, params],
-    queryFn: () => fetchApi<OrdersResponse>(`/api/orders?${queryParams}`, shop),
+    queryFn: () => fetchApi<OrdersResponse>(`/orders?${queryParams}`, shop),
     enabled: !!shop,
     staleTime: 60 * 1000, // 1 minute
     ...options,
@@ -330,7 +335,7 @@ export function useOrder(orderId: string, options?: UseQueryOptions<Order>) {
 
   return useQuery({
     queryKey: ['orders', orderId, shop],
-    queryFn: () => fetchApi<Order>(`/api/orders/${orderId}`, shop),
+    queryFn: () => fetchApi<Order>(`/orders/${orderId}`, shop),
     enabled: !!shop && !!orderId,
     staleTime: 60 * 1000,
     ...options,
@@ -348,7 +353,7 @@ export function useOrderStats(
 
   return useQuery({
     queryKey: ['orders', 'stats', shop, params],
-    queryFn: () => fetchApi<OrderStatsResponse>(`/api/orders/stats/summary?${queryParams}`, shop),
+    queryFn: () => fetchApi<OrderStatsResponse>(`/orders/stats/summary?${queryParams}`, shop),
     enabled: !!shop,
     staleTime: 5 * 60 * 1000,
     ...options,
@@ -366,7 +371,7 @@ export function useDailyOrderStats(
 
   return useQuery({
     queryKey: ['orders', 'daily', shop, params],
-    queryFn: () => fetchApi<DailyOrderStatsResponse>(`/api/orders/stats/daily?${queryParams}`, shop),
+    queryFn: () => fetchApi<DailyOrderStatsResponse>(`/orders/stats/daily?${queryParams}`, shop),
     enabled: !!shop,
     staleTime: 5 * 60 * 1000,
     ...options,
@@ -400,7 +405,7 @@ export function useCustomers(params?: CustomersQueryParams, options?: UseQueryOp
 
   return useQuery({
     queryKey: ['customers', shop, params],
-    queryFn: () => fetchApi<CustomersResponse>(`/api/customers?${queryParams}`, shop),
+    queryFn: () => fetchApi<CustomersResponse>(`/customers?${queryParams}`, shop),
     enabled: !!shop,
     staleTime: 60 * 1000,
     ...options,
@@ -412,7 +417,7 @@ export function useCustomer(customerId: string, options?: UseQueryOptions<Custom
 
   return useQuery({
     queryKey: ['customers', customerId, shop],
-    queryFn: () => fetchApi<Customer>(`/api/customers/${customerId}`, shop),
+    queryFn: () => fetchApi<Customer>(`/customers/${customerId}`, shop),
     enabled: !!shop && !!customerId,
     staleTime: 60 * 1000,
     ...options,
@@ -428,7 +433,7 @@ export function useSegments(options?: UseQueryOptions<SegmentsResponse>) {
 
   return useQuery({
     queryKey: ['segments', shop],
-    queryFn: () => fetchApi<SegmentsResponse>('/api/segments', shop),
+    queryFn: () => fetchApi<SegmentsResponse>('/segments', shop),
     enabled: !!shop,
     staleTime: 60 * 1000,
     ...options,
@@ -440,7 +445,7 @@ export function useSegment(segmentId: string, options?: UseQueryOptions<Segment>
 
   return useQuery({
     queryKey: ['segments', segmentId, shop],
-    queryFn: () => fetchApi<Segment>(`/api/segments/${segmentId}`, shop),
+    queryFn: () => fetchApi<Segment>(`/segments/${segmentId}`, shop),
     enabled: !!shop && !!segmentId,
     staleTime: 60 * 1000,
     ...options,
@@ -460,7 +465,7 @@ export function useCreateSegment() {
 
   return useMutation({
     mutationFn: (input: CreateSegmentInput) =>
-      fetchApi<Segment>('/api/segments', shop, {
+      fetchApi<Segment>('/segments', shop, {
         method: 'POST',
         body: JSON.stringify(input),
       }),
@@ -476,7 +481,7 @@ export function useUpdateSegment() {
 
   return useMutation({
     mutationFn: ({ id, ...input }: { id: string } & Partial<CreateSegmentInput>) =>
-      fetchApi<Segment>(`/api/segments/${id}`, shop, {
+      fetchApi<Segment>(`/segments/${id}`, shop, {
         method: 'PUT',
         body: JSON.stringify(input),
       }),
@@ -493,7 +498,7 @@ export function useDeleteSegment() {
 
   return useMutation({
     mutationFn: (segmentId: string) =>
-      fetchApi<void>(`/api/segments/${segmentId}`, shop, {
+      fetchApi<void>(`/segments/${segmentId}`, shop, {
         method: 'DELETE',
       }),
     onSuccess: () => {
@@ -507,7 +512,7 @@ export function usePreviewSegment() {
 
   return useMutation({
     mutationFn: (filters: unknown) =>
-      fetchApi<{ count: number; sample: Customer[] }>('/api/segments/preview', shop, {
+      fetchApi<{ count: number; sample: Customer[] }>('/segments/preview', shop, {
         method: 'POST',
         body: JSON.stringify({ filters }),
       }),
@@ -524,13 +529,129 @@ export function useRecalculateRfm() {
 
   return useMutation({
     mutationFn: () =>
-      fetchApi<{ jobId: string }>('/api/analytics/rfm/recalculate', shop, {
+      fetchApi<{ jobId: string }>('/analytics/rfm/recalculate', shop, {
         method: 'POST',
       }),
     onSuccess: () => {
       // Invalidate RFM-related queries after recalculation is triggered
       queryClient.invalidateQueries({ queryKey: ['rfm', shop] });
       queryClient.invalidateQueries({ queryKey: ['customers', shop] });
+    },
+  });
+}
+
+// ============================================================================
+// TENANT / SYNC HOOKS
+// ============================================================================
+
+export interface TenantInfo {
+  id: string;
+  shopifyDomain: string;
+  shopName: string | null;
+  email: string | null;
+  status: string;
+  planTier: string;
+  monthlyApiCalls: number;
+  apiCallLimit: number;
+  onboardedAt: string;
+  lastSyncAt: string | null;
+  createdAt: string;
+  rateLimit?: {
+    remaining: number;
+    limit: number;
+    resetAt: string;
+  };
+}
+
+export interface SyncJob {
+  id: string;
+  resourceType: string;
+  status: string;
+  syncMode: string;
+  recordsProcessed: number;
+  recordsFailed: number;
+  totalRecords: number | null;
+  progressPercent: number;
+  error: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  durationMs: number | null;
+  createdAt: string;
+}
+
+export interface SyncStatusResponse {
+  lastSyncAt: string | null;
+  recentJobs: SyncJob[];
+}
+
+export function useTenantInfo(options?: UseQueryOptions<{ success: boolean; data: TenantInfo }>) {
+  const { shop } = useShop();
+
+  return useQuery({
+    queryKey: ['tenant', 'info', shop],
+    queryFn: () => fetchApi<{ success: boolean; data: TenantInfo }>('/tenants/me', shop),
+    enabled: !!shop,
+    staleTime: 60 * 1000,
+    ...options,
+  });
+}
+
+export function useSyncStatus(options?: UseQueryOptions<{ success: boolean; data: SyncStatusResponse }>) {
+  const { shop } = useShop();
+
+  return useQuery({
+    queryKey: ['tenant', 'sync', shop],
+    queryFn: () => fetchApi<{ success: boolean; data: SyncStatusResponse }>('/tenants/me/sync-status', shop),
+    enabled: !!shop,
+    staleTime: 30 * 1000, // 30 seconds for sync status
+    refetchInterval: 30 * 1000, // Auto-refresh every 30 seconds
+    ...options,
+  });
+}
+
+export function useTenantStats(options?: UseQueryOptions<{ success: boolean; data: {
+  customers: number;
+  orders: number;
+  products: number;
+  segments: number;
+  ordersLast30Days: number;
+  totalRevenue: number;
+} }>) {
+  const { shop } = useShop();
+
+  return useQuery({
+    queryKey: ['tenant', 'stats', shop],
+    queryFn: () => fetchApi<{ success: boolean; data: {
+      customers: number;
+      orders: number;
+      products: number;
+      segments: number;
+      ordersLast30Days: number;
+      totalRevenue: number;
+    } }>('/tenants/me/stats', shop),
+    enabled: !!shop,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+}
+
+export function useTriggerSync() {
+  const { shop } = useShop();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (resourceType?: 'customers' | 'orders' | 'products' | 'all') =>
+      fetchApi<{ success: boolean; data: { jobId: string; message: string } }>(
+        '/sync/trigger',
+        shop,
+        {
+          method: 'POST',
+          body: JSON.stringify({ resourceType: resourceType || 'all' }),
+        }
+      ),
+    onSuccess: () => {
+      // Invalidate sync status to show new job
+      queryClient.invalidateQueries({ queryKey: ['tenant', 'sync', shop] });
     },
   });
 }

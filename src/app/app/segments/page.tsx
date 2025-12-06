@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Plus, Edit2, Trash2, Users, MoreVertical, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +27,7 @@ import { useShop } from '@/hooks/use-shop';
 import { formatNumber, formatDate } from '@/lib/utils';
 
 export default function SegmentsPage() {
+  const router = useRouter();
   const { shop, isLoading: shopLoading } = useShop();
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
 
@@ -76,9 +79,11 @@ export default function SegmentsPage() {
         title="Customer Segments"
         description="Create and manage customer segments for targeted marketing"
         actions={
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Segment
+          <Button asChild>
+            <Link href="/app/segments/create">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Segment
+            </Link>
           </Button>
         }
       />
@@ -151,7 +156,7 @@ export default function SegmentsPage() {
               description="Create your first customer segment to start targeting specific groups"
               action={{
                 label: 'Create Segment',
-                onClick: () => {/* TODO: Open create modal */},
+                onClick: () => router.push('/app/segments/create'),
               }}
             />
           ) : (
@@ -191,7 +196,12 @@ export default function SegmentsPage() {
                       <div className="flex items-center gap-1">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={() => router.push(`/app/segments/${segment.id}`)}
+                            >
                               <Eye className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
@@ -199,7 +209,12 @@ export default function SegmentsPage() {
                         </Tooltip>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={() => router.push(`/app/segments/${segment.id}/edit`)}
+                            >
                               <Edit2 className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
@@ -241,7 +256,7 @@ export default function SegmentsPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <button
               className="p-4 rounded-lg border bg-card hover:bg-accent transition-colors text-left"
-              onClick={() => {/* TODO: Create from template */}}
+              onClick={() => router.push('/app/segments/create?template=high-value')}
             >
               <div className="font-medium">High Value Customers</div>
               <div className="text-sm text-muted-foreground mt-1">
@@ -250,7 +265,7 @@ export default function SegmentsPage() {
             </button>
             <button
               className="p-4 rounded-lg border bg-card hover:bg-accent transition-colors text-left"
-              onClick={() => {/* TODO: Create from template */}}
+              onClick={() => router.push('/app/segments/create?template=recent-purchasers')}
             >
               <div className="font-medium">Recent Purchasers</div>
               <div className="text-sm text-muted-foreground mt-1">
@@ -259,7 +274,7 @@ export default function SegmentsPage() {
             </button>
             <button
               className="p-4 rounded-lg border bg-card hover:bg-accent transition-colors text-left"
-              onClick={() => {/* TODO: Create from template */}}
+              onClick={() => router.push('/app/segments/create?template=at-risk')}
             >
               <div className="font-medium">At Risk Customers</div>
               <div className="text-sm text-muted-foreground mt-1">
@@ -268,7 +283,7 @@ export default function SegmentsPage() {
             </button>
             <button
               className="p-4 rounded-lg border bg-card hover:bg-accent transition-colors text-left"
-              onClick={() => {/* TODO: Create from template */}}
+              onClick={() => router.push('/app/segments/create?template=repeat-buyers')}
             >
               <div className="font-medium">Repeat Buyers</div>
               <div className="text-sm text-muted-foreground mt-1">
@@ -277,7 +292,7 @@ export default function SegmentsPage() {
             </button>
             <button
               className="p-4 rounded-lg border bg-card hover:bg-accent transition-colors text-left"
-              onClick={() => {/* TODO: Create from template */}}
+              onClick={() => router.push('/app/segments/create?template=champions')}
             >
               <div className="font-medium">Champions (RFM)</div>
               <div className="text-sm text-muted-foreground mt-1">
@@ -286,7 +301,7 @@ export default function SegmentsPage() {
             </button>
             <button
               className="p-4 rounded-lg border bg-card hover:bg-accent transition-colors text-left"
-              onClick={() => {/* TODO: Create from template */}}
+              onClick={() => router.push('/app/segments/create?template=new-customers')}
             >
               <div className="font-medium">New Customers</div>
               <div className="text-sm text-muted-foreground mt-1">

@@ -2,12 +2,13 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
+import { Toaster } from '@/components/ui/toaster';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Shopify App',
-  description: 'Shopify App built with Next.js',
+  title: 'Xeno CRM - Customer Data Platform',
+  description: 'Multi-tenant customer data platform for Shopify stores with RFM analysis',
 };
 
 export default function RootLayout({
@@ -25,7 +26,10 @@ export default function RootLayout({
         />
       </head>
       <body className={inter.className}>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );

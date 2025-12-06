@@ -206,9 +206,19 @@ interface RfmHeatmapProps {
   }>;
   isLoading?: boolean;
   title?: string;
+  onCellClick?: (recency: number, frequency: number, count: number) => void;
 }
 
-export function RfmHeatmap({ matrix, isLoading, title = 'RFM Score Heatmap' }: RfmHeatmapProps) {
+// Color scale for heatmap - green gradient from light to dark
+const getHeatmapColor = (intensity: number): string => {
+  // Interpolate from light green to dark green
+  const hue = 160; // Green hue
+  const saturation = 60 + intensity * 30; // 60-90%
+  const lightness = 85 - intensity * 55; // 85-30%
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+};
+
+export function RfmHeatmap({ matrix, isLoading, title = 'RFM Score Heatmap', onCellClick }: RfmHeatmapProps) {
   if (isLoading) {
     return (
       <Card>
@@ -223,57 +233,137 @@ export function RfmHeatmap({ matrix, isLoading, title = 'RFM Score Heatmap' }: R
   }
 
   // Create 5x5 grid for R x F (aggregated across M)
-  const heatmapData: number[][] = Array(5)
+  const heatmapData: { count: number; avgSpent: number }[][] = Array(5)
     .fill(null)
-    .map(() => Array(5).fill(0));
+    .map(() => Array(5).fill(null).map(() => ({ count: 0, avgSpent: 0 })));
 
   matrix.forEach(cell => {
     const r = cell.recencyScore - 1;
     const f = cell.frequencyScore - 1;
     if (r >= 0 && r < 5 && f >= 0 && f < 5) {
-      heatmapData[4 - r][f] += cell.count; // Invert R so high recency is at top
+      const idx = 4 - r; // Invert R so high recency is at top
+      heatmapData[idx][f].count += cell.count;
+      // Weighted average for avgSpent
+      const existingTotal = heatmapData[idx][f].avgSpent * (heatmapData[idx][f].count - cell.count);
+      heatmapData[idx][f].avgSpent = (existingTotal + cell.avgSpent * cell.count) / heatmapData[idx][f].count || 0;
     }
   });
 
-  const maxCount = Math.max(...heatmapData.flat());
+  const maxCount = Math.max(...heatmapData.flat().map(cell => cell.count));
+  const totalCustomers = heatmapData.flat().reduce((sum, cell) => sum + cell.count, 0);
+
+  // Labels for the axis
+  const recencyLabels = ['Best', '', 'Medium', '', 'Worst'];
+  const frequencyLabels = ['Low', '', 'Medium', '', 'High'];
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
-        <CardDescription>Recency (rows) vs Frequency (columns) - darker = more customers</CardDescription>
+        <CardDescription>
+          Recency (vertical) vs Frequency (horizontal) - Click cells to filter customers
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col items-center">
-          <div className="flex items-center gap-1 mb-2">
-            <span className="text-xs text-muted-foreground w-8"></span>
-            {[1, 2, 3, 4, 5].map(f => (
-              <span key={f} className="text-xs text-muted-foreground w-12 text-center">
-                F{f}
-              </span>
-            ))}
-          </div>
-          {heatmapData.map((row, rIdx) => (
-            <div key={rIdx} className="flex items-center gap-1">
-              <span className="text-xs text-muted-foreground w-8">R{5 - rIdx}</span>
-              {row.map((count, fIdx) => {
-                const intensity = maxCount > 0 ? count / maxCount : 0;
-                return (
-                  <div
-                    key={fIdx}
-                    className="w-12 h-10 rounded flex items-center justify-center text-xs font-medium"
-                    style={{
-                      backgroundColor: `rgba(0, 128, 96, ${0.1 + intensity * 0.8})`,
-                      color: intensity > 0.5 ? 'white' : 'inherit',
-                    }}
-                    title={`R${5 - rIdx}, F${fIdx + 1}: ${count} customers`}
-                  >
-                    {count > 0 ? count : ''}
-                  </div>
-                );
-              })}
+        <div className="flex flex-col items-center space-y-4">
+          {/* Legend */}
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: getHeatmapColor(0.1) }} />
+              <span>Few</span>
             </div>
-          ))}
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: getHeatmapColor(0.5) }} />
+              <span>Some</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: getHeatmapColor(0.9) }} />
+              <span>Many</span>
+            </div>
+          </div>
+
+          {/* Heatmap Grid */}
+          <div className="relative">
+            {/* Y-axis label */}
+            <div className="absolute -left-10 top-1/2 -translate-y-1/2 -rotate-90 text-xs font-medium text-muted-foreground whitespace-nowrap">
+              Recency →
+            </div>
+            
+            {/* X-axis header */}
+            <div className="flex items-center gap-1 mb-1 pl-10">
+              {[1, 2, 3, 4, 5].map((f, idx) => (
+                <div key={f} className="w-14 text-center">
+                  <span className="text-xs font-medium">F{f}</span>
+                  {frequencyLabels[idx] && (
+                    <span className="text-[10px] text-muted-foreground block">{frequencyLabels[idx]}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            {/* Grid rows */}
+            {heatmapData.map((row, rIdx) => (
+              <div key={rIdx} className="flex items-center gap-1">
+                {/* Y-axis labels */}
+                <div className="w-10 text-right pr-1">
+                  <span className="text-xs font-medium">R{5 - rIdx}</span>
+                  {recencyLabels[rIdx] && (
+                    <span className="text-[10px] text-muted-foreground block">{recencyLabels[rIdx]}</span>
+                  )}
+                </div>
+                
+                {/* Cells */}
+                {row.map((cell, fIdx) => {
+                  const intensity = maxCount > 0 ? cell.count / maxCount : 0;
+                  const percentage = totalCustomers > 0 ? (cell.count / totalCustomers * 100).toFixed(1) : '0';
+                  const isHighlighted = intensity > 0.5;
+                  const recencyScore = 5 - rIdx;
+                  const frequencyScore = fIdx + 1;
+                  
+                  return (
+                    <button
+                      key={fIdx}
+                      className="w-14 h-12 rounded-md flex flex-col items-center justify-center text-xs transition-all hover:scale-105 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                      style={{
+                        backgroundColor: cell.count > 0 ? getHeatmapColor(intensity) : 'hsl(var(--muted))',
+                        color: isHighlighted ? 'white' : 'inherit',
+                      }}
+                      title={`R${recencyScore} x F${frequencyScore}
+${cell.count} customers (${percentage}%)
+Avg spend: ${formatCurrency(cell.avgSpent)}`}
+                      onClick={() => onCellClick?.(recencyScore, frequencyScore, cell.count)}
+                    >
+                      {cell.count > 0 && (
+                        <>
+                          <span className="font-bold">{formatNumber(cell.count)}</span>
+                          <span className={`text-[10px] ${isHighlighted ? 'text-white/80' : 'text-muted-foreground'}`}>
+                            {percentage}%
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+            
+            {/* X-axis label */}
+            <div className="text-center text-xs font-medium text-muted-foreground mt-2 pl-10">
+              Frequency →
+            </div>
+          </div>
+
+          {/* Summary Stats */}
+          <div className="flex items-center gap-6 text-sm">
+            <div className="text-center">
+              <div className="text-muted-foreground">Total Customers</div>
+              <div className="font-bold">{formatNumber(totalCustomers)}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-muted-foreground">Active Cells</div>
+              <div className="font-bold">{heatmapData.flat().filter(c => c.count > 0).length}/25</div>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

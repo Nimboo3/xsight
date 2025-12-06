@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PageHeader, ErrorState, EmptyState } from '@/components/dashboard';
+import { PageHeader, ErrorState, EmptyState, CustomerDetailDrawer } from '@/components/dashboard';
 import { useCustomers, type CustomersQueryParams } from '@/hooks/use-api';
 import { useShop } from '@/hooks/use-shop';
 import {
@@ -57,6 +57,7 @@ export default function CustomersPage() {
     sortOrder: 'desc',
   });
   const [searchInput, setSearchInput] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   const {
     data,
@@ -212,7 +213,11 @@ export default function CustomersPage() {
               </TableHeader>
               <TableBody>
                 {customers.map((customer) => (
-                  <TableRow key={customer.id}>
+                  <TableRow 
+                    key={customer.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => setSelectedCustomerId(customer.id)}
+                  >
                     <TableCell>
                       <div>
                         <div className="font-medium">
@@ -302,6 +307,13 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
+
+      {/* Customer Detail Drawer */}
+      <CustomerDetailDrawer
+        customerId={selectedCustomerId}
+        open={!!selectedCustomerId}
+        onClose={() => setSelectedCustomerId(null)}
+      />
     </div>
   );
 }
