@@ -51,6 +51,7 @@ export interface CustomerSyncJobData {
   accessToken: string;
   mode: 'full' | 'incremental';
   cursor?: string;
+  syncRunId?: string; // For real-time progress tracking
 }
 
 export interface OrderSyncJobData {
@@ -60,6 +61,7 @@ export interface OrderSyncJobData {
   mode: 'full' | 'incremental';
   cursor?: string;
   since?: string;
+  syncRunId?: string; // For real-time progress tracking
 }
 
 export interface RfmCalculationJobData {
@@ -124,7 +126,8 @@ export const bulkQueue = new Queue<BulkOperationJobData>(
     ...defaultQueueOptions,
     defaultJobOptions: {
       ...defaultQueueOptions.defaultJobOptions,
-      timeout: 30 * 60 * 1000, // 30 minute timeout for bulk operations
+      // Note: timeout is set at worker level, not job level in BullMQ
+      attempts: 2, // Fewer retries for bulk ops
     },
   }
 );

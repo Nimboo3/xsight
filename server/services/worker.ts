@@ -4,6 +4,11 @@ import { prisma } from '../config/database';
 import { logger } from '../lib/logger';
 import { invalidateTenantCache } from '../lib/cache';
 import {
+  updateSyncProgress,
+  completeSyncRun,
+  failSyncRun,
+} from '../lib/sync-progress';
+import {
   QUEUE_NAMES,
   WebhookJobData,
   CustomerSyncJobData,
@@ -60,6 +65,7 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
       },
       data: {
         processedAt: new Date(),
+        processed: true,
         status: 'PROCESSED',
       },
     });
@@ -75,7 +81,7 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
       },
       data: {
         status: 'FAILED',
-        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        processingError: error instanceof Error ? error.message : 'Unknown error',
       },
     });
     
@@ -295,10 +301,19 @@ function mapFulfillmentStatus(status: string | null): 'FULFILLED' | 'PARTIAL' | 
  * Process customer sync jobs
  */
 async function processCustomerSync(job: Job<CustomerSyncJobData>): Promise<void> {
-  const { tenantId, shopDomain, mode, cursor } = job.data;
-  log.info({ jobId: job.id, tenantId, mode }, 'Processing customer sync');
+  const { tenantId, shopDomain, mode, cursor, syncRunId } = job.data;
+  log.info({ jobId: job.id, tenantId, mode, syncRunId }, 'Processing customer sync');
   
   const { syncCustomers } = await import('./shopify');
+  
+  // Update real-time sync progress in Redis
+  if (syncRunId) {
+    await updateSyncProgress(syncRunId, {
+      status: 'running',
+      step: 'Fetching customers from Shopify...',
+      progress: 0,
+    });
+  }
   
   // Create sync job record
   const syncJob = await prisma.syncJob.create({
@@ -315,14 +330,26 @@ async function processCustomerSync(job: Job<CustomerSyncJobData>): Promise<void>
     const result = await syncCustomers(tenantId, {
       fullSync: mode === 'full',
       onProgress: async (processed, total) => {
+        const progressPercent = total ? Math.round((processed / total) * 100) : 0;
+        
         await prisma.syncJob.update({
           where: { id: syncJob.id },
           data: {
             recordsProcessed: processed,
             totalRecords: total,
-            progressPercent: total ? Math.round((processed / total) * 100) : 0,
+            progressPercent,
           },
         });
+        
+        // Update real-time sync progress in Redis
+        if (syncRunId) {
+          await updateSyncProgress(syncRunId, {
+            progress: Math.min(progressPercent, 90), // Reserve last 10% for completion
+            step: `Syncing customers (${processed}/${total})...`,
+            recordsProcessed: processed,
+            totalRecords: total,
+          });
+        }
         
         await job.updateProgress({ processed, total });
       },
@@ -338,8 +365,18 @@ async function processCustomerSync(job: Job<CustomerSyncJobData>): Promise<void>
         progressPercent: 100,
       },
     });
+
+    // Invalidate cache to ensure fresh data is shown
+    const { invalidateTenantCache } = await import('../lib/cache');
+    await invalidateTenantCache(tenantId);
     
-    log.info({ tenantId, result }, 'Customer sync completed');
+    // Mark real-time sync as completed (only if this is a single-resource sync)
+    // For 'all' syncs, the order sync will complete the run
+    if (syncRunId && !job.data.mode) {
+      await completeSyncRun(syncRunId);
+    }
+    
+    log.info({ tenantId, result, syncRunId }, 'Customer sync completed');
   } catch (error) {
     await prisma.syncJob.update({
       where: { id: syncJob.id },
@@ -350,6 +387,12 @@ async function processCustomerSync(job: Job<CustomerSyncJobData>): Promise<void>
         errorStack: error instanceof Error ? error.stack : undefined,
       },
     });
+    
+    // Mark real-time sync as failed
+    if (syncRunId) {
+      await failSyncRun(syncRunId, error instanceof Error ? error.message : 'Unknown error');
+    }
+    
     throw error;
   }
 }
@@ -358,10 +401,19 @@ async function processCustomerSync(job: Job<CustomerSyncJobData>): Promise<void>
  * Process order sync jobs
  */
 async function processOrderSync(job: Job<OrderSyncJobData>): Promise<void> {
-  const { tenantId, shopDomain, mode, cursor, since } = job.data;
-  log.info({ jobId: job.id, tenantId, mode }, 'Processing order sync');
+  const { tenantId, shopDomain, mode, cursor, since, syncRunId } = job.data;
+  log.info({ jobId: job.id, tenantId, mode, syncRunId }, 'Processing order sync');
   
   const { syncOrders, updateCustomerOrderStats } = await import('./shopify');
+  
+  // Update real-time sync progress in Redis
+  if (syncRunId) {
+    await updateSyncProgress(syncRunId, {
+      status: 'running',
+      step: 'Fetching orders from Shopify...',
+      progress: 50, // Start at 50% if this is part of an 'all' sync
+    });
+  }
   
   // Create sync job record
   const syncJob = await prisma.syncJob.create({
@@ -378,20 +430,40 @@ async function processOrderSync(job: Job<OrderSyncJobData>): Promise<void> {
     const result = await syncOrders(tenantId, {
       fullSync: mode === 'full',
       onProgress: async (processed, total) => {
+        const progressPercent = total ? Math.round((processed / total) * 100) : 0;
+        
         await prisma.syncJob.update({
           where: { id: syncJob.id },
           data: {
             recordsProcessed: processed,
             totalRecords: total,
-            progressPercent: total ? Math.round((processed / total) * 100) : 0,
+            progressPercent,
           },
         });
+        
+        // Update real-time sync progress in Redis
+        // For 'all' sync, order progress is 50-90% range
+        if (syncRunId) {
+          const adjustedProgress = 50 + Math.round(progressPercent * 0.4); // 50% + (0-40%)
+          await updateSyncProgress(syncRunId, {
+            progress: Math.min(adjustedProgress, 90),
+            step: `Syncing orders (${processed}/${total})...`,
+            recordsProcessed: processed,
+            totalRecords: total,
+          });
+        }
         
         await job.updateProgress({ processed, total });
       },
     });
     
     // Update customer stats after order sync
+    if (syncRunId) {
+      await updateSyncProgress(syncRunId, {
+        progress: 95,
+        step: 'Updating customer statistics...',
+      });
+    }
     await updateCustomerOrderStats(tenantId);
     
     await prisma.syncJob.update({
@@ -404,8 +476,25 @@ async function processOrderSync(job: Job<OrderSyncJobData>): Promise<void> {
         progressPercent: 100,
       },
     });
+
+    // Invalidate cache to ensure fresh data is shown
+    const { invalidateTenantCache } = await import('../lib/cache');
+    await invalidateTenantCache(tenantId);
     
-    log.info({ tenantId, result }, 'Order sync completed');
+    // Trigger RFM calculation for all customers after order sync
+    const { rfmQueue } = await import('./queue');
+    await rfmQueue.add(`rfm:tenant:${tenantId}`, {
+      tenantId,
+      triggeredBy: 'sync',
+    });
+    log.info({ tenantId }, 'Queued tenant-wide RFM calculation after order sync');
+    
+    // Mark real-time sync as completed
+    if (syncRunId) {
+      await completeSyncRun(syncRunId);
+    }
+    
+    log.info({ tenantId, result, syncRunId }, 'Order sync completed');
   } catch (error) {
     await prisma.syncJob.update({
       where: { id: syncJob.id },
@@ -416,6 +505,12 @@ async function processOrderSync(job: Job<OrderSyncJobData>): Promise<void> {
         errorStack: error instanceof Error ? error.stack : undefined,
       },
     });
+    
+    // Mark real-time sync as failed
+    if (syncRunId) {
+      await failSyncRun(syncRunId, error instanceof Error ? error.message : 'Unknown error');
+    }
+    
     throw error;
   }
 }

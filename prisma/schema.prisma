@@ -390,33 +390,41 @@ model SegmentMember {
 // ============================================================================
 
 model WebhookEvent {
-  id              String   @id @default(uuid())
+  id              String            @id @default(uuid())
   tenantId        String
   
   // Shopify webhook metadata
-  eventId         String   @unique // X-Shopify-Event-Id (idempotency)
+  eventId         String            @unique // X-Shopify-Event-Id (idempotency)
   topic           String
   shopifyDomain   String
   
   // Processing
   payload         Json
-  processed       Boolean  @default(false)
+  status          WebhookEventStatus @default(PENDING)
+  processed       Boolean           @default(false)
   processedAt     DateTime?
-  processingError String?  @db.Text
-  retryCount      Int      @default(0)
+  processingError String?           @db.Text
+  retryCount      Int               @default(0)
   
   // Verification
-  hmacValid       Boolean  @default(false)
+  hmacValid       Boolean           @default(false)
   
   // Relationships
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   
   // Timestamps
-  receivedAt      DateTime @default(now())
+  receivedAt      DateTime          @default(now())
   
   @@index([tenantId, topic, receivedAt(sort: Desc)])
   @@index([processed, receivedAt])
+  @@index([status, receivedAt])
   @@map("webhook_events")
+}
+
+enum WebhookEventStatus {
+  PENDING
+  PROCESSED
+  FAILED
 }
 
 model SyncJob {
@@ -425,7 +433,7 @@ model SyncJob {
   
   // Job definition
   resourceType     ResourceType
-  syncMode         SyncMode     @default(INCREMENTAL)
+  mode             SyncMode     @default(INCREMENTAL)
   status           JobStatus
   
   // Progress tracking
@@ -478,10 +486,10 @@ enum JobStatus {
 }
 
 // ============================================================================
-// SHOPIFY SESSION (For OAuth flow, renamed from Session)
+// SHOPIFY SESSION (For OAuth flow)
 // ============================================================================
 
-model ShopifySession {
+model Session {
   id            String    @id
   shop          String
   state         String

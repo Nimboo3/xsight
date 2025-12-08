@@ -4,5 +4,8 @@
   "buildCommand": "next build",
   "outputDirectory": ".next",
   "installCommand": "npm install --legacy-peer-deps --ignore-scripts",
-  "devCommand": "next dev"
+  "devCommand": "next dev",
+  "env": {
+    "NEXT_PUBLIC_DEMO_MODE": "true"
+  }
 }

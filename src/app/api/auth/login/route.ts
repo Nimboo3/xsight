@@ -1,51 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+
+// Express backend URL
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 
 /**
  * POST /api/auth/login
- * Demo login endpoint for Vercel deployment
+ * Proxies to Express backend for authentication
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, demo } = body;
-
-    // Demo mode login
-    if (demo) {
-      const response = NextResponse.json({
-        success: true,
-        user: {
-          id: 'demo-user-id',
-          email: 'demo@example.com',
-          name: 'Demo User',
-        },
-        tenant: {
-          id: 'demo-tenant-id',
-          shopDomain: 'demo-store.myshopify.com',
-          shopName: 'Demo Store',
-        },
-        redirect: '/app',
-      });
-
-      // Set demo mode cookie
-      response.cookies.set('demo_mode', 'true', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-        path: '/',
-      });
-
-      response.cookies.set('auth_token', 'demo-token', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-        path: '/',
-      });
-
-      return response;
-    }
+    const { email, password } = body;
 
     // Validate input
     if (!email || !password) {
@@ -55,32 +20,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For demo purposes, accept any login
-    // In production, this would validate against the database
-    const response = NextResponse.json({
-      success: true,
-      user: {
-        id: 'user-' + Date.now(),
-        email: email,
-        name: email.split('@')[0],
+    // Proxy to Express backend
+    const backendResponse = await fetch(`${BACKEND_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      tenant: null,
-      redirect: '/app/connect',
+      body: JSON.stringify({ email, password }),
     });
 
-    response.cookies.set('auth_token', 'token-' + Date.now(), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/',
-    });
+    const data = await backendResponse.json();
+
+    // Create response
+    const response = NextResponse.json(data, { status: backendResponse.status });
+
+    // Forward cookies from backend
+    const setCookieHeader = backendResponse.headers.get('set-cookie');
+    if (setCookieHeader) {
+      // Parse and forward each cookie
+      const cookieParts = setCookieHeader.split(/,(?=\s*[a-zA-Z_][a-zA-Z0-9_]*=)/);
+      for (const cookiePart of cookieParts) {
+        const match = cookiePart.match(/^\s*([^=]+)=([^;]*)/); 
+        if (match) {
+          const [, name, value] = match;
+          response.cookies.set(name.trim(), value.trim(), {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 7,
+            path: '/',
+          });
+        }
+      }
+    }
 
     return response;
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Login proxy error:', error);
     return NextResponse.json(
-      { success: false, error: 'Login failed' },
+      { success: false, error: 'Login failed. Please try again.' },
       { status: 500 }
     );
   }

@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/table';
 import { PageHeader, ErrorState } from '@/components/dashboard';
 import { SegmentBuilder, SegmentPreview, type SegmentFilters, filtersToApiFormat, createEmptyFilters } from '@/components/segments';
-import { useSegment, useUpdateSegment, useDeleteSegment, useCustomers, type Customer } from '@/hooks/use-api';
+import { useSegment, useUpdateSegment, useDeleteSegment, useSegmentMembers, type Customer } from '@/hooks/use-api';
 import { useShop } from '@/hooks/use-shop';
 import { toast } from '@/components/ui/use-toast';
 import { formatDate, formatCurrency, formatNumber, getRfmSegmentName } from '@/lib/utils';
@@ -557,15 +557,17 @@ function FilterSummary({ filters }: { filters: unknown }) {
 
 // Component to show segment members
 function SegmentMembers({ segmentId }: { segmentId: string }) {
-  // In a real app, this would fetch customers filtered by the segment
-  // For now, we'll show a placeholder since we don't have a direct endpoint
-  const { data, isLoading } = useCustomers({ limit: 10 });
+  const { data, isLoading, error } = useSegmentMembers(segmentId, { limit: 10 });
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Segment Members</CardTitle>
-        <CardDescription>Sample of customers in this segment</CardDescription>
+        <CardDescription>
+          {data?.total 
+            ? `Showing ${data.members?.length || 0} of ${data.total} customers in this segment`
+            : 'Customers matching this segment\'s criteria'}
+        </CardDescription>
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (
@@ -574,6 +576,14 @@ function SegmentMembers({ segmentId }: { segmentId: string }) {
               <Skeleton key={i} className="h-12 w-full" />
             ))}
           </div>
+        ) : error ? (
+          <div className="p-4 text-center text-muted-foreground">
+            Failed to load segment members
+          </div>
+        ) : !data?.members?.length ? (
+          <div className="p-4 text-center text-muted-foreground">
+            No customers found in this segment
+          </div>
         ) : (
           <Table>
             <TableHeader>
@@ -581,32 +591,32 @@ function SegmentMembers({ segmentId }: { segmentId: string }) {
                 <TableHead>Customer</TableHead>
                 <TableHead className="text-right">Spent</TableHead>
                 <TableHead className="text-right">Orders</TableHead>
-                <TableHead>Segment</TableHead>
+                <TableHead>RFM Segment</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.customers.slice(0, 5).map((customer) => (
-                <TableRow key={customer.id}>
+              {data.members.map((member) => (
+                <TableRow key={member.id}>
                   <TableCell>
                     <div>
                       <div className="font-medium">
-                        {customer.firstName || customer.lastName
-                          ? `${customer.firstName || ''} ${customer.lastName || ''}`.trim()
+                        {member.customer.firstName || member.customer.lastName
+                          ? `${member.customer.firstName || ''} ${member.customer.lastName || ''}`.trim()
                           : 'No name'}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {customer.email || 'No email'}
+                        {member.customer.email || 'No email'}
                       </div>
                     </div>
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    {formatCurrency(customer.totalSpent)}
+                    {formatCurrency(member.customer.totalSpent)}
                   </TableCell>
-                  <TableCell className="text-right">{customer.ordersCount}</TableCell>
+                  <TableCell className="text-right">{member.customer.ordersCount ?? 0}</TableCell>
                   <TableCell>
-                    {customer.rfmSegment ? (
+                    {member.customer.rfmSegment ? (
                       <Badge variant="outline" className="text-xs">
-                        {getRfmSegmentName(customer.rfmSegment)}
+                        {getRfmSegmentName(member.customer.rfmSegment)}
                       </Badge>
                     ) : (
                       <span className="text-muted-foreground text-xs">—</span>

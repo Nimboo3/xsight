@@ -85,14 +85,14 @@ async function calculateExpectedPurchaseInterval(
     const tenantAvg = await prisma.$queryRaw<[{ avg_interval: number | null }]>`
       WITH order_intervals AS (
         SELECT 
-          customer_id,
-          order_date,
-          LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date) as prev_order_date
+          "customerId",
+          "orderDate",
+          LAG("orderDate") OVER (PARTITION BY "customerId" ORDER BY "orderDate") as prev_order_date
         FROM orders
-        WHERE tenant_id = ${tenantId}
-          AND financial_status = 'PAID'
+        WHERE "tenantId" = ${tenantId}
+          AND "financialStatus" = 'PAID'
       )
-      SELECT AVG(EXTRACT(DAY FROM order_date - prev_order_date))::numeric as avg_interval
+      SELECT AVG(EXTRACT(DAY FROM "orderDate" - prev_order_date))::numeric as avg_interval
       FROM order_intervals
       WHERE prev_order_date IS NOT NULL
     `;

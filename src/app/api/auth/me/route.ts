@@ -1,50 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
+// Express backend URL
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
+
 /**
  * GET /api/auth/me
- * Returns current user info (demo mode for Vercel deployment)
+ * Proxies to Express backend to get current user info
  */
 export async function GET(request: NextRequest) {
-  const cookieStore = cookies();
-  const token = cookieStore.get('auth_token')?.value;
-  const demoMode = cookieStore.get('demo_mode')?.value;
+  try {
+    const cookieStore = cookies();
+    const sessionToken = cookieStore.get('xsight_session')?.value;
 
-  // Demo mode - return mock user
-  if (demoMode === 'true') {
-    return NextResponse.json({
-      authenticated: true,
-      user: {
-        id: 'demo-user-id',
-        email: 'demo@example.com',
-        name: 'Demo User',
-      },
-      tenant: {
-        id: 'demo-tenant-id',
-        shopDomain: 'demo-store.myshopify.com',
-        shopName: 'Demo Store',
+    // No session token - not authenticated
+    if (!sessionToken) {
+      return NextResponse.json({
+        authenticated: false,
+        user: null,
+        tenant: null,
+      });
+    }
+
+    // Proxy to Express backend
+    const backendResponse = await fetch(`${BACKEND_URL}/api/auth/me`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': `xsight_session=${sessionToken}`,
       },
     });
-  }
 
-  // No auth - return unauthenticated
-  if (!token) {
+    const data = await backendResponse.json();
+    return NextResponse.json(data, { status: backendResponse.status });
+  } catch (error) {
+    console.error('Auth check error:', error);
     return NextResponse.json({
       authenticated: false,
       user: null,
       tenant: null,
-    });
+      error: 'Failed to check authentication',
+    }, { status: 500 });
   }
-
-  // For real auth, we'd verify JWT here
-  // For now, just return authenticated if token exists
-  return NextResponse.json({
-    authenticated: true,
-    user: {
-      id: 'user-from-token',
-      email: 'user@example.com',
-      name: 'User',
-    },
-    tenant: null,
-  });
 }

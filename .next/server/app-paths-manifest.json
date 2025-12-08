@@ -1,1 +1,9 @@
-{}
+{
+  "/api/auth/me/route": "app/api/auth/me/route.js",
+  "/app/analytics/page": "app/app/analytics/page.js",
+  "/app/page": "app/app/page.js",
+  "/app/segments/page": "app/app/segments/page.js",
+  "/app/customers/page": "app/app/customers/page.js",
+  "/app/segments/[id]/page": "app/app/segments/[id]/page.js",
+  "/app/orders/page": "app/app/orders/page.js"
+}

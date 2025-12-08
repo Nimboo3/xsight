@@ -126,7 +126,13 @@ segmentsRouter.get('/:id', async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    res.json({ segment });
+    // Map customerCount to memberCount for frontend compatibility
+    res.json({ 
+      segment: {
+        ...segment,
+        memberCount: segment.customerCount || 0,
+      }
+    });
   } catch (error) {
     next(error);
   }

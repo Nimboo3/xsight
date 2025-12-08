@@ -7,6 +7,7 @@ const log = logger.child({ module: 'order-sync' });
 
 /**
  * GraphQL query for fetching orders with cursor pagination
+ * Updated for Shopify API 2025-01 - orderNumber removed, use name instead
  */
 const ORDERS_QUERY = `
   query GetOrders($first: Int!, $after: String) {
@@ -15,7 +16,6 @@ const ORDERS_QUERY = `
         node {
           id
           name
-          orderNumber
           createdAt
           updatedAt
           processedAt
@@ -99,7 +99,6 @@ interface ShopifyLineItem {
 interface ShopifyOrderNode {
   id: string;
   name: string;
-  orderNumber: number;
   createdAt: string;
   updatedAt: string;
   processedAt: string | null;
@@ -156,6 +155,14 @@ interface OrdersQueryResult {
 function extractShopifyId(gid: string): string {
   const parts = gid.split('/');
   return parts[parts.length - 1];
+}
+
+/**
+ * Extract order number from order name (e.g., "#1001" -> 1001)
+ */
+function extractOrderNumber(name: string): number {
+  const match = name.match(/\d+/);
+  return match ? parseInt(match[0], 10) : 0;
 }
 
 /**
@@ -279,7 +286,7 @@ export async function syncOrders(
             : new Date(node.createdAt);
           
           const orderData = {
-            orderNumber: node.orderNumber,
+            orderNumber: extractOrderNumber(node.name),
             orderName: node.name,
             totalPrice: parseFloat(node.totalPriceSet.shopMoney.amount),
             subtotalPrice: parseFloat(node.subtotalPriceSet.shopMoney.amount),
@@ -476,7 +483,7 @@ export async function syncSingleOrder(
   });
   
   const orderData = {
-    orderNumber: node.orderNumber,
+    orderNumber: extractOrderNumber(node.name),
     orderName: node.name,
     totalPrice: parseFloat(node.totalPriceSet.shopMoney.amount),
     subtotalPrice: parseFloat(node.subtotalPriceSet.shopMoney.amount),

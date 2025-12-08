@@ -26,7 +26,7 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().length(64, 'ENCRYPTION_KEY must be 64 hex characters (32 bytes)'),
   
   // Frontend
-  NEXT_PUBLIC_API_URL: z.string().url().optional(),
+  FRONTEND_URL: z.string().url().optional(),
   
   // Monitoring (Optional)
   SENTRY_DSN: z.string().url().optional(),
@@ -72,7 +72,7 @@ export const config = {
   encryptionKey: env.ENCRYPTION_KEY,
   
   // Frontend
-  frontendUrl: env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  frontendUrl: env.FRONTEND_URL || 'http://localhost:3001',
   
   // Monitoring
   sentryDsn: env.SENTRY_DSN,

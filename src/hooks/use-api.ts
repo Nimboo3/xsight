@@ -2,10 +2,11 @@
 
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { useShop } from './use-shop';
+import { API_BASE, API_VERSION, isDemoMode } from '@/lib/api-config';
 
-// API base URL - uses relative URLs for Vercel deployment
-const API_BASE_URL = '';
-const API_V1 = '/api/v1';
+// API configuration - uses centralized config
+const API_BASE_URL = API_BASE;
+const API_V1 = API_VERSION;
 
 // ============================================================================
 // TYPES
@@ -17,6 +18,7 @@ export interface RfmDistribution {
   count: number;
   totalSpent: number;
   avgSpent: number;
+  avgOrderValue: number;
   percentage: number;
 }
 
@@ -149,8 +151,13 @@ export interface Segment {
   filters: unknown;
   isActive: boolean;
   memberCount: number;
+  customerCount?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+interface SegmentResponse {
+  segment: Segment;
 }
 
 export interface SegmentsResponse {
@@ -453,7 +460,15 @@ export function useSegment(segmentId: string, options?: UseQueryOptions<Segment>
 
   return useQuery({
     queryKey: ['segments', segmentId, shop],
-    queryFn: () => fetchApi<Segment>(`/segments/${segmentId}`, shop),
+    queryFn: async () => {
+      const response = await fetchApi<SegmentResponse>(`/segments/${segmentId}`, shop);
+      const segment = response.segment;
+      // Map customerCount to memberCount if needed
+      return {
+        ...segment,
+        memberCount: segment.memberCount ?? segment.customerCount ?? 0,
+      };
+    },
     enabled: !!shop && !!segmentId,
     staleTime: 60 * 1000,
     ...options,
@@ -524,6 +539,47 @@ export function usePreviewSegment() {
         method: 'POST',
         body: JSON.stringify({ filters }),
       }),
+  });
+}
+
+export interface SegmentMember {
+  id: string;
+  addedAt: string;
+  totalSpentSnapshot: number;
+  rfmSegmentSnapshot: string | null;
+  customer: {
+    id: string;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    totalSpent: number;
+    ordersCount: number;
+    rfmSegment: string | null;
+  };
+}
+
+export interface SegmentMembersResponse {
+  members: SegmentMember[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export function useSegmentMembers(segmentId: string, params?: { page?: number; limit?: number }, options?: UseQueryOptions<SegmentMembersResponse>) {
+  const { shop } = useShop();
+  const queryParams = new URLSearchParams();
+  
+  if (params) {
+    if (params.limit) queryParams.set('limit', params.limit.toString());
+    if (params.page) queryParams.set('offset', ((params.page - 1) * (params.limit || 10)).toString());
+  }
+
+  return useQuery({
+    queryKey: ['segments', segmentId, 'members', shop, params],
+    queryFn: () => fetchApi<SegmentMembersResponse>(`/segments/${segmentId}/members?${queryParams}`, shop),
+    enabled: !!shop && !!segmentId,
+    staleTime: 60 * 1000,
+    ...options,
   });
 }
 
@@ -643,18 +699,30 @@ export function useTenantStats(options?: UseQueryOptions<{ success: boolean; dat
   });
 }
 
+// Response type for sync trigger
+export interface TriggerSyncResponse {
+  message: string;
+  syncRunId: string;
+  jobIds: string[];
+  resource: string;
+  mode: string;
+}
+
 export function useTriggerSync() {
   const { shop } = useShop();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (resourceType?: 'customers' | 'orders' | 'products' | 'all') =>
-      fetchApi<{ success: boolean; data: { jobId: string; message: string } }>(
-        '/sync/trigger',
+    mutationFn: (options?: { resource?: 'customers' | 'orders' | 'all'; mode?: 'full' | 'incremental' }) =>
+      fetchApi<{ success: boolean; data: TriggerSyncResponse }>(
+        '/tenants/me/sync',
         shop,
         {
           method: 'POST',
-          body: JSON.stringify({ resourceType: resourceType || 'all' }),
+          body: JSON.stringify({ 
+            resource: options?.resource || 'all',
+            mode: options?.mode || 'full',
+          }),
         }
       ),
     onSuccess: () => {

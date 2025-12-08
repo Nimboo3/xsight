@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { DollarSign, Users, ShoppingCart, TrendingUp, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { DollarSign, Users, ShoppingCart, TrendingUp } from 'lucide-react';
 import {
   KpiCard,
   RevenueChart,
@@ -12,6 +11,7 @@ import {
   DateRangeFilter,
   PageHeader,
   ErrorState,
+  SyncButton,
 } from '@/components/dashboard';
 import {
   useOrderStats,
@@ -118,19 +118,12 @@ export default function DashboardPage() {
         description="Your store performance at a glance"
         actions={
           <div className="flex items-center gap-2">
+            <SyncButton onSyncComplete={() => refetchOrderStats()} />
             <DateRangeFilter
               value={dateRange}
               onChange={handleDateRangeChange}
               className="w-[180px]"
             />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => refetchOrderStats()}
-              title="Refresh data"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
           </div>
         }
       />

@@ -229,16 +229,16 @@ analyticsRouter.get('/cohorts/monthly', async (req: Request, res: Response, next
         avg_orders_per_customer: number;
       }>>`
         SELECT
-          TO_CHAR(first_order_date, 'YYYY-MM') as cohort_month,
+          TO_CHAR("firstOrderDate", 'YYYY-MM') as cohort_month,
           COUNT(*) as customer_count,
-          SUM(total_spent)::float as total_revenue,
-          AVG(avg_order_value)::float as avg_order_value,
-          AVG(orders_count)::float as avg_orders_per_customer
+          SUM("totalSpent")::float as total_revenue,
+          AVG("avgOrderValue")::float as avg_order_value,
+          AVG("ordersCount")::float as avg_orders_per_customer
         FROM customers
-        WHERE tenant_id = ${tenantId}
-          AND first_order_date IS NOT NULL
-          AND first_order_date >= NOW() - INTERVAL '${monthsBack} months'
-        GROUP BY TO_CHAR(first_order_date, 'YYYY-MM')
+        WHERE "tenantId" = ${tenantId}
+          AND "firstOrderDate" IS NOT NULL
+          AND "firstOrderDate" >= NOW() - INTERVAL '${monthsBack} months'
+        GROUP BY TO_CHAR("firstOrderDate", 'YYYY-MM')
         ORDER BY cohort_month DESC
       `;
 
@@ -282,12 +282,12 @@ analyticsRouter.get('/cohorts/retention', async (req: Request, res: Response, ne
         WITH cohorts AS (
           SELECT
             id as customer_id,
-            TO_CHAR(first_order_date, 'YYYY-MM') as cohort_month,
-            first_order_date
+            TO_CHAR("firstOrderDate", 'YYYY-MM') as cohort_month,
+            "firstOrderDate"
           FROM customers
-          WHERE tenant_id = ${tenantId}
-            AND first_order_date IS NOT NULL
-            AND first_order_date >= NOW() - INTERVAL '${monthsBack} months'
+          WHERE "tenantId" = ${tenantId}
+            AND "firstOrderDate" IS NOT NULL
+            AND "firstOrderDate" >= NOW() - INTERVAL '${monthsBack} months'
         ),
         cohort_sizes AS (
           SELECT cohort_month, COUNT(*) as cohort_size
@@ -298,11 +298,11 @@ analyticsRouter.get('/cohorts/retention', async (req: Request, res: Response, ne
           SELECT DISTINCT
             c.cohort_month,
             c.customer_id,
-            EXTRACT(MONTH FROM AGE(o.order_date, c.first_order_date))::int as month_number
+            EXTRACT(MONTH FROM AGE(o."orderDate", c."firstOrderDate"))::int as month_number
           FROM cohorts c
-          INNER JOIN orders o ON c.customer_id = o.customer_id
-          WHERE o.tenant_id = ${tenantId}
-            AND o.financial_status IN ('PAID', 'PARTIALLY_PAID')
+          INNER JOIN orders o ON c.customer_id = o."customerId"
+          WHERE o."tenantId" = ${tenantId}
+            AND o."financialStatus" IN ('PAID', 'PARTIALLY_PAID')
         )
         SELECT
           ma.cohort_month,
@@ -356,15 +356,15 @@ analyticsRouter.get('/revenue/trend', async (req: Request, res: Response, next: 
         unique_customers: bigint;
       }>>`
         SELECT
-          DATE(order_date) as date,
+          DATE("orderDate") as date,
           COUNT(*) as order_count,
-          SUM(total_price)::float as revenue,
-          COUNT(DISTINCT customer_id) as unique_customers
+          SUM("totalPrice")::float as revenue,
+          COUNT(DISTINCT "customerId") as unique_customers
         FROM orders
-        WHERE tenant_id = ${tenantId}
-          AND order_date >= NOW() - INTERVAL '${daysBack} days'
-          AND financial_status IN ('PAID', 'PARTIALLY_PAID')
-        GROUP BY DATE(order_date)
+        WHERE "tenantId" = ${tenantId}
+          AND "orderDate" >= NOW() - INTERVAL '${daysBack} days'
+          AND "financialStatus" IN ('PAID', 'PARTIALLY_PAID')
+        GROUP BY DATE("orderDate")
         ORDER BY date DESC
       `;
 

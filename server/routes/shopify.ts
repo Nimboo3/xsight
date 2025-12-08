@@ -26,23 +26,37 @@ shopifyRouter.use(authRateLimiter);
  * GET /auth
  * Initiate Shopify OAuth flow
  * 
- * Requires: Authenticated user (via JWT cookie)
- * Query params: shop (e.g., my-store.myshopify.com)
+ * Requires: Either JWT cookie OR oauth-init token in query
+ * Query params: shop (e.g., my-store.myshopify.com), token (optional oauth-init token)
  */
 shopifyRouter.get('/', optionalAuthMiddleware, async (req: Request, res: Response) => {
   try {
-    const { shop } = req.query;
+    const { shop, token: oauthToken } = req.query;
 
     // Validate shop parameter
     if (!shop || typeof shop !== 'string') {
       return res.status(400).json({ error: 'Missing shop parameter' });
     }
 
-    // Check if user is authenticated
-    const token = req.cookies?.[JWT_COOKIE_NAME];
-    const payload = token ? verifyJwt(token) : null;
+    // Check for authentication - either via cookie or oauth-init token
+    let userId: string | null = null;
+    
+    // First try cookie
+    const cookieToken = req.cookies?.[JWT_COOKIE_NAME];
+    const cookiePayload = cookieToken ? verifyJwt(cookieToken) : null;
+    
+    if (cookiePayload) {
+      userId = cookiePayload.userId;
+    } else if (oauthToken && typeof oauthToken === 'string') {
+      // Try oauth-init token (for ngrok redirects where cookies don't work)
+      const tokenPayload = verifyJwt(oauthToken);
+      if (tokenPayload && tokenPayload.purpose === 'oauth-init') {
+        userId = tokenPayload.userId;
+        logger.info({ userId }, 'Using oauth-init token for authentication');
+      }
+    }
 
-    if (!payload) {
+    if (!userId) {
       // Redirect to login with return URL
       const returnUrl = encodeURIComponent(`/auth?shop=${shop}`);
       return res.redirect(`${config.frontendUrl}/auth/login?returnUrl=${returnUrl}`);
@@ -55,50 +69,60 @@ shopifyRouter.get('/', optionalAuthMiddleware, async (req: Request, res: Respons
     }
 
     // Check if this shop is already connected to another user
+    // NOTE: If you see TypeScript errors about userId, run: npx prisma generate
     const existingTenant = await prisma.tenant.findUnique({
       where: { shopifyDomain: sanitizedShop },
-      select: { userId: true, shopifyDomain: true },
-    });
+    }) as { userId?: string | null; shopifyDomain: string } | null;
 
-    if (existingTenant && existingTenant.userId && existingTenant.userId !== payload.userId) {
+    if (existingTenant && existingTenant.userId && existingTenant.userId !== userId) {
       // Store is already connected to a different user
       return res.redirect(
-        `${config.frontendUrl}/app/connect?error=store_taken&shop=${sanitizedShop}`
+        `${config.frontendUrl}/connect?error=store_taken&shop=${sanitizedShop}`
       );
     }
 
     // Check if user already has a connected store
-    const userTenant = await prisma.tenant.findUnique({
-      where: { userId: payload.userId },
-      select: { shopifyDomain: true },
-    });
+    const userTenant = await prisma.tenant.findFirst({
+      where: { userId: userId } as any,
+    }) as { shopifyDomain: string } | null;
 
     if (userTenant && userTenant.shopifyDomain !== sanitizedShop) {
       // User already has a different store connected (1:1 constraint)
       return res.redirect(
-        `${config.frontendUrl}/app/connect?error=already_connected&currentShop=${userTenant.shopifyDomain}`
+        `${config.frontendUrl}/connect?error=already_connected&currentShop=${userTenant.shopifyDomain}`
       );
     }
 
-    // Store userId in state for callback (base64 encoded)
-    const stateData = { userId: payload.userId };
-    const state = Buffer.from(JSON.stringify(stateData)).toString('base64');
+    // Store userId in state for callback - we need to pass this through the OAuth flow
+    // The Shopify library manages its own state for CSRF, so we'll store userId in a cookie
+    // that will be sent back on the callback
+    const oauthStateCookie = Buffer.from(JSON.stringify({ userId })).toString('base64');
+    res.cookie('oauth_state', oauthStateCookie, {
+      httpOnly: true,
+      secure: config.isProd,
+      sameSite: 'lax',
+      maxAge: 5 * 60 * 1000, // 5 minutes
+      path: '/',
+    });
 
-    // Begin OAuth
-    const authUrl = await shopify.auth.begin({
+    logger.info({ shop: sanitizedShop, userId }, 'Starting Shopify OAuth');
+
+    // Begin OAuth - this will redirect to Shopify
+    // The library handles the redirect internally via rawResponse
+    await shopify.auth.begin({
       shop: sanitizedShop,
       callbackPath: '/auth/callback',
       isOnline: false,
       rawRequest: req,
       rawResponse: res,
     });
-
-    logger.info({ shop: sanitizedShop, userId: payload.userId }, 'Starting Shopify OAuth');
-
-    res.redirect(authUrl);
+    
+    // Don't call res.redirect() - shopify.auth.begin() already sent the response
   } catch (error) {
     logger.error({ error }, 'OAuth begin error');
-    res.redirect(`${config.frontendUrl}/app/connect?error=oauth_failed`);
+    if (!res.headersSent) {
+      res.redirect(`${config.frontendUrl}/connect?error=oauth_failed`);
+    }
   }
 });
 
@@ -107,6 +131,7 @@ shopifyRouter.get('/', optionalAuthMiddleware, async (req: Request, res: Respons
  * Handle Shopify OAuth callback
  * 
  * Links the Shopify store to the authenticated user.
+ * User ID is recovered from oauth_state cookie set during auth.begin()
  */
 shopifyRouter.get('/callback', async (req: Request, res: Response) => {
   try {
@@ -116,13 +141,35 @@ shopifyRouter.get('/callback', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing shop or code parameter' });
     }
 
-    // Get user from JWT cookie
-    const token = req.cookies?.[JWT_COOKIE_NAME];
-    const payload = token ? verifyJwt(token) : null;
-
-    if (!payload) {
-      // User not authenticated - redirect to login
-      return res.redirect(`${config.frontendUrl}/auth/login?error=auth_required`);
+    // Try to get userId from various sources
+    let userId: string | null = null;
+    
+    // 1. Try oauth_state cookie (set during auth.begin())
+    const oauthStateCookie = req.cookies?.oauth_state;
+    if (oauthStateCookie) {
+      try {
+        const stateData = JSON.parse(Buffer.from(oauthStateCookie, 'base64').toString());
+        if (stateData.userId) {
+          userId = stateData.userId;
+          logger.info({ userId }, 'Got userId from oauth_state cookie');
+        }
+      } catch (e) {
+        logger.warn('Failed to parse oauth_state cookie');
+      }
+      // Clear the oauth_state cookie
+      res.clearCookie('oauth_state', { path: '/' });
+    }
+    
+    // 2. Try JWT cookie (same-domain flow)
+    if (!userId) {
+      const token = req.cookies?.[JWT_COOKIE_NAME];
+      if (token) {
+        const payload = verifyJwt(token);
+        if (payload) {
+          userId = payload.userId;
+          logger.info({ userId }, 'Got userId from JWT cookie');
+        }
+      }
     }
 
     // Exchange the authorization code for an access token
@@ -133,8 +180,37 @@ shopifyRouter.get('/callback', async (req: Request, res: Response) => {
 
     const { session } = callback;
 
+    // DEBUG: Log what we got from Shopify
+    logger.info({ 
+      shop: session.shop,
+      hasAccessToken: !!session.accessToken,
+      accessTokenLength: session.accessToken?.length || 0,
+      scope: session.scope,
+      sessionId: session.id,
+    }, 'OAuth callback received session from Shopify');
+
+    // 3. If we don't have userId, try to recover from existing tenant
+    if (!userId) {
+      const existingTenant = await prisma.tenant.findUnique({
+        where: { shopifyDomain: session.shop },
+      }) as { userId?: string | null } | null;
+      
+      if (existingTenant?.userId) {
+        userId = existingTenant.userId;
+        logger.info({ shop: session.shop, userId }, 'Recovered userId from existing tenant');
+      }
+    }
+
+    // If still no userId, we have a problem - user needs to re-authenticate
+    if (!userId) {
+      logger.warn({ shop: session.shop }, 'OAuth callback without user context');
+      return res.redirect(
+        `${config.frontendUrl}/auth/login?error=session_expired&returnUrl=${encodeURIComponent('/connect')}`
+      );
+    }
+
     // Store the Shopify session
-    await prisma.shopifySession.upsert({
+    await prisma.session.upsert({
       where: { id: session.id },
       update: {
         shop: session.shop,
@@ -164,6 +240,7 @@ shopifyRouter.get('/callback', async (req: Request, res: Response) => {
       : '';
 
     // Upsert tenant and link to user
+    // NOTE: If TypeScript errors about userId, run: npx prisma generate
     const tenant = await prisma.tenant.upsert({
       where: { shopifyDomain: session.shop },
       update: {
@@ -171,8 +248,8 @@ shopifyRouter.get('/callback', async (req: Request, res: Response) => {
         accessTokenHash: tokenHash,
         scope: session.scope?.split(',') || [],
         status: 'ACTIVE',
-        userId: payload.userId, // Link to authenticated user
-      },
+        userId: userId, // Link to authenticated user
+      } as any,
       create: {
         shopifyDomain: session.shop,
         shopName: session.shop.replace('.myshopify.com', ''),
@@ -181,8 +258,8 @@ shopifyRouter.get('/callback', async (req: Request, res: Response) => {
         scope: session.scope?.split(',') || [],
         status: 'ACTIVE',
         planTier: 'FREE',
-        userId: payload.userId, // Link to authenticated user
-      },
+        userId: userId, // Link to authenticated user
+      } as any,
     });
 
     // Register webhooks in background
@@ -208,15 +285,22 @@ shopifyRouter.get('/callback', async (req: Request, res: Response) => {
     });
 
     logger.info(
-      { shop: session.shop, userId: payload.userId, tenantId: tenant.id },
+      { shop: session.shop, userId, tenantId: tenant.id },
       'OAuth completed - Store linked to user'
     );
 
     // Redirect to dashboard
     res.redirect(`${config.frontendUrl}/app`);
-  } catch (error) {
-    logger.error({ error }, 'OAuth callback error');
-    res.redirect(`${config.frontendUrl}/app/connect?error=callback_failed`);
+  } catch (error: any) {
+    logger.error({ 
+      error: error?.message || error,
+      stack: error?.stack,
+      code: error?.code,
+    }, 'OAuth callback error');
+    
+    if (!res.headersSent) {
+      res.redirect(`${config.frontendUrl}/connect?error=callback_failed`);
+    }
   }
 });
 
@@ -235,9 +319,12 @@ shopifyRouter.post('/disconnect', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
+    const currentUserId = payload.userId;
+
     // Find and update tenant
-    const tenant = await prisma.tenant.findUnique({
-      where: { userId: payload.userId },
+    // NOTE: If TypeScript errors about userId, run: npx prisma generate
+    const tenant = await prisma.tenant.findFirst({
+      where: { userId: currentUserId } as any,
       select: { id: true, shopifyDomain: true },
     });
 
@@ -248,11 +335,11 @@ shopifyRouter.post('/disconnect', async (req: Request, res: Response) => {
     // Remove user link (keep tenant data for potential reconnection)
     await prisma.tenant.update({
       where: { id: tenant.id },
-      data: { userId: null },
+      data: { userId: null } as any,
     });
 
     logger.info(
-      { userId: payload.userId, tenantId: tenant.id },
+      { userId: currentUserId, tenantId: tenant.id },
       'Store disconnected from user'
     );
 

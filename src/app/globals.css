@@ -4,49 +4,110 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 15 100% 98%;
+    --foreground: 15 15% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 15 15% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 162 63% 25%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 15 15% 10%;
+    --primary: 15 86% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 20 90% 95%;
+    --secondary-foreground: 15 15% 10%;
+    --muted: 20 80% 96%;
+    --muted-foreground: 15 10% 45%;
+    --accent: 15 95% 90%;
+    --accent-foreground: 15 15% 10%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 162 63% 25%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 20 50% 92%;
+    --input: 20 50% 92%;
+    --ring: 15 86% 65%;
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 162 63% 41%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 162 63% 41%;
+    --background: 15 20% 8%;
+    --foreground: 20 30% 95%;
+    --card: 15 20% 10%;
+    --card-foreground: 20 30% 95%;
+    --popover: 15 20% 10%;
+    --popover-foreground: 20 30% 95%;
+    --primary: 15 75% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 15 15% 18%;
+    --secondary-foreground: 20 30% 95%;
+    --muted: 15 15% 18%;
+    --muted-foreground: 20 20% 65%;
+    --accent: 15 25% 20%;
+    --accent-foreground: 20 30% 95%;
+    --destructive: 0 72.2% 50.6%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 15 20% 22%;
+    --input: 15 20% 22%;
+    --ring: 15 75% 55%;
   }
+
+  body {
+    cursor: url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.5 3.5L11.5 20.5L13.5 13.5L20.5 11.5L5.5 3.5Z" fill="black" stroke="white" stroke-width="1"/></svg>') 2 2, auto;
+  }
+
+  a, button, [role="button"] {
+    cursor: url('data:image/svg+xml;utf8,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.5 3.5L11.5 20.5L13.5 13.5L20.5 11.5L5.5 3.5Z" fill="black" stroke="white" stroke-width="1"/></svg>') 2 2, pointer;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Subtle gradient animations */
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -30px) scale(1.05);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+}
+
+@keyframes float-delayed {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(-30px, 30px) scale(0.95);
+  }
+  66% {
+    transform: translate(20px, -20px) scale(1.05);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(1.1);
+  }
+}
+
+.animate-float {
+  animation: float 20s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-delayed 25s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 15s ease-in-out infinite;
 }
 
 @layer base {

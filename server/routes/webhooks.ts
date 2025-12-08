@@ -48,14 +48,12 @@ async function storeWebhookEvent(
     const event = await prisma.webhookEvent.create({
       data: {
         tenantId: tenant.id,
+        eventId: `${topic}-${shopDomain}-${Date.now()}`, // Unique event ID
         topic,
         shopifyDomain: shopDomain,
-        payload,
-        resourceType: resourceType as any,
-        resourceId: resourceId || null,
-        receivedAt: new Date(),
-        processedAt: null,
+        payload: payload as any,
         status: 'PENDING',
+        receivedAt: new Date(),
       },
     });
 

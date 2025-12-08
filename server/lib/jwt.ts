@@ -11,7 +11,9 @@ import { config } from '../config/env';
 // JWT payload structure - User-based (not tenant-based)
 export interface JwtPayload {
   userId: string;
-  email: string;
+  email?: string;
+  purpose?: string; // For special tokens like 'oauth-init'
+  shop?: string;    // Shop domain for OAuth tokens
   iat: number;
   exp: number;
 }
@@ -22,9 +24,12 @@ const JWT_EXPIRES_IN = '7d';
 /**
  * Sign a JWT token for a user
  */
-export function signJwt(payload: { userId: string; email: string }): string {
+export function signJwt(
+  payload: { userId: string; email?: string; purpose?: string; shop?: string },
+  expiresIn?: string
+): string {
   return jwt.sign(payload, config.jwtSecret, { 
-    expiresIn: JWT_EXPIRES_IN,
+    expiresIn: expiresIn || JWT_EXPIRES_IN,
     algorithm: 'HS256',
   });
 }
@@ -55,7 +60,7 @@ export function decodeJwt(token: string): JwtPayload | null {
 }
 
 // Cookie configuration
-export const JWT_COOKIE_NAME = 'shopsight_session';
+export const JWT_COOKIE_NAME = 'xsight_session';
 
 export const JWT_COOKIE_OPTIONS = {
   httpOnly: true,

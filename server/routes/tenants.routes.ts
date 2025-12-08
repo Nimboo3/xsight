@@ -8,6 +8,15 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { logger } from '../lib/logger';
 import { getTenantRateLimitStatus } from '../middleware/tenantRateLimit.middleware';
+import { customerSyncQueue, orderSyncQueue } from '../services/queue/queues';
+import { decrypt } from '../lib/crypto';
+import { invalidateTenantCache } from '../lib/cache';
+import {
+  generateSyncRunId,
+  createSyncRun,
+  getSyncProgress,
+  getActiveSyncRunsForTenant,
+} from '../lib/sync-progress';
 
 const log = logger.child({ module: 'tenants-routes' });
 
@@ -124,7 +133,7 @@ tenantsRouter.get('/me/sync-status', async (req: Request, res: Response, next: N
         id: true,
         resourceType: true,
         status: true,
-        syncMode: true,
+        mode: true,
         recordsProcessed: true,
         recordsFailed: true,
         totalRecords: true,
@@ -147,6 +156,85 @@ tenantsRouter.get('/me/sync-status', async (req: Request, res: Response, next: N
       data: {
         lastSyncAt: tenant?.lastSyncAt,
         recentJobs,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/v1/tenants/me/sync
+ * Trigger data sync from Shopify
+ */
+tenantsRouter.post('/me/sync', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tenantId = req.tenant!.id;
+    const { resource = 'all', mode = 'full' } = req.body;
+
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        shopifyDomain: true,
+        accessToken: true,
+      },
+    });
+
+    if (!tenant || !tenant.accessToken) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'NO_ACCESS_TOKEN', message: 'Store not connected' },
+      });
+    }
+
+    const accessToken = decrypt(tenant.accessToken);
+    const jobIds: string[] = [];
+
+    // Generate a unique sync run ID for real-time tracking
+    const syncRunId = generateSyncRunId();
+    const resourceType = resource as 'customers' | 'orders' | 'all';
+    
+    // Create sync run in Redis for real-time progress tracking
+    await createSyncRun(syncRunId, tenantId, resourceType);
+
+    // Queue customer sync
+    if (resource === 'all' || resource === 'customers') {
+      const customerJob = await customerSyncQueue.add('sync-customers', {
+        tenantId,
+        shopDomain: tenant.shopifyDomain,
+        accessToken,
+        mode: mode as 'full' | 'incremental',
+        syncRunId, // Pass syncRunId to worker
+      });
+      jobIds.push(customerJob.id!);
+      log.info({ jobId: customerJob.id, tenantId, syncRunId }, 'Queued customer sync');
+    }
+
+    // Queue order sync
+    if (resource === 'all' || resource === 'orders') {
+      const orderJob = await orderSyncQueue.add('sync-orders', {
+        tenantId,
+        shopDomain: tenant.shopifyDomain,
+        accessToken,
+        mode: mode as 'full' | 'incremental',
+        syncRunId, // Pass syncRunId to worker
+      });
+      jobIds.push(orderJob.id!);
+      log.info({ jobId: orderJob.id, tenantId, syncRunId }, 'Queued order sync');
+    }
+
+    // Immediately invalidate cache so UI refreshes with fresh data
+    await invalidateTenantCache(tenantId);
+    log.info({ tenantId }, 'Invalidated tenant cache for sync');
+
+    res.json({
+      success: true,
+      data: {
+        message: 'Sync jobs queued successfully',
+        syncRunId, // Return syncRunId for frontend to subscribe
+        jobIds,
+        resource,
+        mode,
       },
     });
   } catch (error) {
@@ -180,6 +268,60 @@ tenantsRouter.get('/me/webhooks', async (req: Request, res: Response, next: Next
     res.json({
       success: true,
       data: webhooks,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/v1/tenants/me/sync/:syncRunId/status
+ * Get real-time sync progress (REST fallback for WebSocket)
+ */
+tenantsRouter.get('/me/sync/:syncRunId/status', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tenantId = req.tenant!.id;
+    const { syncRunId } = req.params;
+
+    const progress = await getSyncProgress(syncRunId);
+
+    if (!progress) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'SYNC_NOT_FOUND', message: 'Sync run not found' },
+      });
+    }
+
+    // Verify sync belongs to this tenant
+    if (progress.tenantId !== tenantId) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'ACCESS_DENIED', message: 'Access denied' },
+      });
+    }
+
+    res.json({
+      success: true,
+      data: progress,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/v1/tenants/me/sync/active
+ * Get all active sync runs for current tenant
+ */
+tenantsRouter.get('/me/sync/active', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tenantId = req.tenant!.id;
+
+    const activeSyncs = await getActiveSyncRunsForTenant(tenantId);
+
+    res.json({
+      success: true,
+      data: activeSyncs,
     });
   } catch (error) {
     next(error);

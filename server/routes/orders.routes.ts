@@ -360,7 +360,7 @@ ordersRouter.get('/stats/daily', async (req: Request, res: Response, next: NextF
           DATE("orderDate") as date,
           COUNT(*) as count,
           COALESCE(SUM("totalPrice"), 0) as revenue
-        FROM "Order"
+        FROM "orders"
         WHERE "tenantId" = ${tenantId}
           AND "orderDate" >= ${startDate}
           AND "orderDate" <= ${endDate}

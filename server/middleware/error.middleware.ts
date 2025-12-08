@@ -111,8 +111,8 @@ export function errorMiddleware(
     error: {
       code: errorCode,
       message,
-      ...(details && { details }),
-      ...(requestId && { requestId }),
+      ...(details !== undefined ? { details } : {}),
+      ...(requestId ? { requestId } : {}),
     },
   };
   

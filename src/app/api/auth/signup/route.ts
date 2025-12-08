@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Express backend URL
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
+
 /**
  * POST /api/auth/signup
- * Demo signup endpoint for Vercel deployment
+ * Proxies to Express backend for user registration
  */
 export async function POST(request: NextRequest) {
   try {
@@ -24,31 +27,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For demo purposes, create a mock user
-    // In production, this would create a user in the database
-    const response = NextResponse.json({
-      success: true,
-      user: {
-        id: 'user-' + Date.now(),
-        email: email,
-        name: name || email.split('@')[0],
+    // Proxy to Express backend
+    const backendResponse = await fetch(`${BACKEND_URL}/api/auth/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      message: 'Account created successfully',
+      body: JSON.stringify({ email, password, name }),
     });
 
-    response.cookies.set('auth_token', 'token-' + Date.now(), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/',
-    });
+    const data = await backendResponse.json();
+    const response = NextResponse.json(data, { status: backendResponse.status });
+
+    // Forward cookies from backend
+    const setCookieHeader = backendResponse.headers.get('set-cookie');
+    if (setCookieHeader) {
+      const cookieParts = setCookieHeader.split(/,(?=\s*[a-zA-Z_][a-zA-Z0-9_]*=)/);
+      for (const cookiePart of cookieParts) {
+        const match = cookiePart.match(/^\s*([^=]+)=([^;]*)/);
+        if (match) {
+          const [, cookieName, cookieValue] = match;
+          response.cookies.set(cookieName.trim(), cookieValue.trim(), {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 7,
+            path: '/',
+          });
+        }
+      }
+    }
 
     return response;
   } catch (error) {
-    console.error('Signup error:', error);
+    console.error('Signup proxy error:', error);
     return NextResponse.json(
-      { success: false, error: 'Signup failed' },
+      { success: false, error: 'Signup failed. Please try again.' },
       { status: 500 }
     );
   }

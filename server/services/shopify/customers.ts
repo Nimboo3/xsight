@@ -7,6 +7,7 @@ const log = logger.child({ module: 'customer-sync' });
 
 /**
  * GraphQL query for fetching customers with cursor pagination
+ * Updated for Shopify API 2025-01
  */
 const CUSTOMERS_QUERY = `
   query GetCustomers($first: Int!, $after: String) {
@@ -20,8 +21,8 @@ const CUSTOMERS_QUERY = `
           phone
           createdAt
           updatedAt
-          ordersCount
-          totalSpent {
+          numberOfOrders
+          amountSpent {
             amount
             currencyCode
           }
@@ -55,8 +56,8 @@ interface ShopifyCustomerNode {
   phone: string | null;
   createdAt: string;
   updatedAt: string;
-  ordersCount: number;
-  totalSpent: {
+  numberOfOrders: number;
+  amountSpent: {
     amount: string;
     currencyCode: string;
   };
@@ -109,8 +110,8 @@ function transformCustomer(
     firstName: node.firstName,
     lastName: node.lastName,
     phone: node.phone,
-    ordersCount: node.ordersCount,
-    totalSpent: parseFloat(node.totalSpent.amount),
+    ordersCount: node.numberOfOrders,
+    totalSpent: parseFloat(node.amountSpent.amount),
     shopifyCreatedAt: new Date(node.createdAt),
     // RFM fields will be calculated separately
     recencyScore: null,

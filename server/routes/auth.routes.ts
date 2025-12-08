@@ -183,7 +183,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
         shopDomain: user.tenant!.shopifyDomain,
         shopName: user.tenant!.shopName,
       } : null,
-      redirect: hasStore ? '/app' : '/app/connect',
+      redirect: hasStore ? '/app' : '/connect',
     });
   } catch (error) {
     log.error({ error }, 'Login error');
@@ -283,6 +283,48 @@ authRouter.get('/me', async (req: Request, res: Response) => {
       user: null,
       tenant: null,
     });
+  }
+});
+
+/**
+ * POST /api/auth/oauth-token
+ * Generate a short-lived token for OAuth initiation
+ * 
+ * This is needed because when redirecting to ngrok URL, cookies won't be sent.
+ * The frontend gets this token via local proxy, then passes it to ngrok URL.
+ */
+authRouter.post('/oauth-token', async (req: Request, res: Response) => {
+  try {
+    const token = req.cookies?.[JWT_COOKIE_NAME];
+
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const payload = verifyJwt(token);
+    
+    if (!payload) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    const { shop } = req.body;
+    
+    if (!shop || typeof shop !== 'string') {
+      return res.status(400).json({ error: 'Missing shop parameter' });
+    }
+
+    // Create a short-lived token (5 minutes) for OAuth initiation
+    const oauthToken = signJwt(
+      { userId: payload.userId, shop, purpose: 'oauth-init' },
+      '5m'
+    );
+
+    log.info({ userId: payload.userId, shop }, 'Generated OAuth initiation token');
+
+    res.json({ token: oauthToken });
+  } catch (error) {
+    log.error({ error }, 'Error generating OAuth token');
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

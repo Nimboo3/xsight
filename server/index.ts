@@ -1,4 +1,5 @@
 import express, { Application, Request, Response } from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -21,8 +22,14 @@ import { swaggerRouter } from './routes/swagger';
 import { authRouter } from './routes/auth.routes';
 import { closeAllQueues, getQueuesHealth } from './services/queue';
 import { initializeScheduler, closeScheduler, getSchedulerHealth } from './services/scheduler';
+import { 
+  initializeWebSocket, 
+  closeWebSocket, 
+  getTotalConnectedClients 
+} from './websocket';
 
 const app: Application = express();
+const httpServer = createServer(app);
 const log = logger.child({ module: 'server' });
 
 // Initialize Sentry FIRST (before other middleware)
@@ -37,11 +44,18 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// CORS configuration
+// CORS configuration - Allow frontend origins
+const allowedOrigins = config.isDev
+  ? ['http://localhost:3001', 'http://localhost:3000', /\.myshopify\.com$/]
+  : [
+      config.shopifyAppUrl,
+      config.frontendUrl,
+      /\.vercel\.app$/,      // Allow any Vercel preview URLs
+      /\.myshopify\.com$/,   // Allow Shopify embedded app
+    ].filter(Boolean);
+
 app.use(cors({
-  origin: config.isDev
-    ? ['http://localhost:3001', 'http://localhost:3000', /\.myshopify\.com$/]
-    : [config.shopifyAppUrl, /\.myshopify\.com$/],
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Shopify-Shop-Domain', 'X-Request-ID'],
@@ -110,6 +124,10 @@ app.get('/health', async (req: Request, res: Response) => {
         redis: redisStatus === 'ready' ? 'connected' : redisStatus,
         queues: queuesHealth,
         scheduler: schedulerHealth,
+        websocket: {
+          status: 'connected',
+          connectedClients: getTotalConnectedClients(),
+        },
       },
     });
   } catch (error) {
@@ -164,6 +182,9 @@ async function gracefulShutdown(signal: string): Promise<void> {
   // Flush Sentry events
   await flushSentry();
   
+  // Close WebSocket server
+  await closeWebSocket();
+  
   // Close scheduler
   await closeScheduler();
   
@@ -199,14 +220,18 @@ async function startServer(): Promise<void> {
     // Initialize scheduled jobs
     await initializeScheduler();
     
+    // Initialize WebSocket server
+    initializeWebSocket(httpServer);
+    
     // Start HTTP server
     const PORT = config.port;
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
       log.info({ port: PORT, env: config.nodeEnv }, 'Server started');
       log.info({
         database: 'PostgreSQL via Prisma',
         redis: config.redisUrl ? 'Connected' : 'Not configured',
         sentry: config.sentryDsn ? 'Enabled' : 'Disabled',
+        websocket: 'Enabled',
       }, 'Services');
     });
   } catch (error) {

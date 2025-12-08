@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { PageHeader, ErrorState, EmptyState } from '@/components/dashboard';
@@ -74,19 +75,20 @@ export default function SegmentsPage() {
   const segments = data?.segments || [];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Customer Segments"
-        description="Create and manage customer segments for targeted marketing"
-        actions={
-          <Button asChild>
-            <Link href="/app/segments/create">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Segment
-            </Link>
-          </Button>
-        }
-      />
+    <TooltipProvider>
+      <div className="space-y-6">
+        <PageHeader
+          title="Customer Segments"
+          description="Create and manage customer segments for targeted marketing"
+          actions={
+            <Button asChild>
+              <Link href="/app/segments/create">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Segment
+              </Link>
+            </Button>
+          }
+        />
 
       {/* Segments Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -213,7 +215,7 @@ export default function SegmentsPage() {
                               variant="ghost" 
                               size="icon" 
                               className="h-8 w-8"
-                              onClick={() => router.push(`/app/segments/${segment.id}/edit`)}
+                              onClick={() => router.push(`/app/segments/${segment.id}`)}
                             >
                               <Edit2 className="h-4 w-4" />
                             </Button>
@@ -311,6 +313,7 @@ export default function SegmentsPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

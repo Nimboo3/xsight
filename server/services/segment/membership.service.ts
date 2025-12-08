@@ -509,9 +509,9 @@ export async function getSegmentOverlap(
       const count = await prisma.$queryRaw<[{ count: bigint }]>`
         SELECT COUNT(*) as count
         FROM segment_members sm1
-        INNER JOIN segment_members sm2 ON sm1.customer_id = sm2.customer_id
-        WHERE sm1.segment_id = ${segmentIds[i]}
-          AND sm2.segment_id = ${segmentIds[j]}
+        INNER JOIN segment_members sm2 ON sm1."customerId" = sm2."customerId"
+        WHERE sm1."segmentId" = ${segmentIds[i]}
+          AND sm2."segmentId" = ${segmentIds[j]}
       `;
       
       overlaps.push({

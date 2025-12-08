@@ -9,7 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar, ChevronDown } from 'lucide-react';
+import { Calendar, ChevronDown, RefreshCw } from 'lucide-react';
+import { SyncButton } from './sync-button';
 
 type DateRange = '7d' | '30d' | '90d' | '365d' | 'custom';
 
@@ -69,9 +70,10 @@ interface PageHeaderProps {
   title: string;
   description?: string;
   actions?: React.ReactNode;
+  showSync?: boolean;
 }
 
-export function PageHeader({ title, description, actions }: PageHeaderProps) {
+export function PageHeader({ title, description, actions, showSync = false }: PageHeaderProps) {
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div>
@@ -80,7 +82,10 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
           <p className="text-muted-foreground">{description}</p>
         )}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      <div className="flex items-center gap-2">
+        {showSync && <SyncButton size="sm" showLabel={false} />}
+        {actions}
+      </div>
     </div>
   );
 }

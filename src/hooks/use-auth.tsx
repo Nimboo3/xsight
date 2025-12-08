@@ -1,9 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { API_BASE, AUTH_PREFIX } from '@/lib/api-config';
 
-// Use relative URLs for API calls (works both locally and on Vercel)
-const API_BASE = '';
+// API configuration from centralized config
+const AUTH_API = `${API_BASE}${AUTH_PREFIX}`;
 
 /**
  * User information from authenticated session
@@ -66,7 +67,7 @@ interface AuthProviderProps {
 /**
  * Authentication Provider
  * 
- * Manages authentication state for the ShopSight application.
+ * Manages authentication state for the XSight application.
  * Users authenticate with email/password, then connect their Shopify store.
  * 
  * Usage:
@@ -93,7 +94,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setState(s => ({ ...s, isLoading: true, error: null }));
 
-      const response = await fetch(`${API_BASE}/api/auth/me`, {
+      const response = await fetch(`${AUTH_API}/me`, {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -137,7 +138,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const login = useCallback(async (email: string, password: string) => {
     try {
-      const response = await fetch(`${API_BASE}/api/auth/login`, {
+      const response = await fetch(`${AUTH_API}/login`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -151,7 +152,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         await checkAuth();
         return {
           success: true,
-          redirect: data.hasTenant ? '/app' : '/app/connect',
+          redirect: data.hasTenant ? '/app' : '/connect',
         };
       }
 
@@ -175,7 +176,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const signup = useCallback(async (name: string, email: string, password: string) => {
     try {
-      const response = await fetch(`${API_BASE}/api/auth/signup`, {
+      const response = await fetch(`${AUTH_API}/signup`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -208,7 +209,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const logout = useCallback(async () => {
     try {
-      await fetch(`${API_BASE}/api/auth/logout`, {
+      await fetch(`${AUTH_API}/logout`, {
         method: 'POST',
         credentials: 'include',
       });

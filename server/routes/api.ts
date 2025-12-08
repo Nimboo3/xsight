@@ -190,7 +190,8 @@ apiRouter.get('/stats', tenantMiddleware, async (req: Request, res: Response) =>
         take: 5,
         select: {
           id: true,
-          shopifyOrderId: true,
+          shopifyId: true,
+          orderNumber: true,
           totalPrice: true,
           createdAt: true,
           customer: {

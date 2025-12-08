@@ -20,3 +20,6 @@ export {
   webhookRateLimiter, 
   bulkRateLimiter 
 } from './rateLimit.middleware';
+
+// Alias for hybrid auth (supports both JWT and session-based auth)
+export { authMiddleware as hybridAuthMiddleware } from './auth.middleware';

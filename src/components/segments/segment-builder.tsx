@@ -528,16 +528,15 @@ export function createEmptyFilters(): SegmentFilters {
 
 export function filtersToApiFormat(filters: SegmentFilters): unknown {
   // Convert to the backend DSL format
-  const conditions = filters.groups.flatMap(group => {
-    return group.filters.map(filter => ({
-      field: filter.field,
-      operator: filter.operator,
-      value: filter.value,
-    }));
-  });
-
+  // Backend expects: { groups: [{ logic: 'AND', conditions: [...] }] }
   return {
-    logic: filters.logic,
-    conditions,
+    groups: filters.groups.map(group => ({
+      logic: group.logic,
+      conditions: group.filters.map(filter => ({
+        field: filter.field,
+        operator: filter.operator,
+        value: filter.value === '' ? null : filter.value, // Convert empty string to null
+      })),
+    })),
   };
 }

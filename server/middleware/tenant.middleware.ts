@@ -100,7 +100,7 @@ export async function verifyShopifyRequest(
     const isValid = verifyOAuthRequest(
       { shop, timestamp, ...rest },
       signature,
-      config.shopifyApiSecret
+      config.shopify.apiSecret
     );
     
     if (!isValid) {

@@ -14,9 +14,9 @@ const log = logger.child({ module: 'rfm-service' });
 // Result type from raw SQL query
 interface RfmScoreRow {
   id: string;
-  tenant_id: string;
-  total_spent: string | number;
-  orders_count: number;
+  tenantId: string;
+  totalSpent: string | number;
+  ordersCount: number;
   days_since_last_order: number;
   recency_score: number;
   frequency_score: number;
@@ -49,6 +49,7 @@ export interface RfmSegmentStats {
   segment: RFMSegment;
   count: number;
   totalSpent: number;
+  avgSpent: number;
   avgOrderValue: number;
   percentage: number;
 }
@@ -127,10 +128,10 @@ export function determineRfmSegment(r: number, f: number, m: number): RFMSegment
  */
 async function getHighValueThreshold(tenantId: string): Promise<number> {
   const result = await prisma.$queryRaw<[{ p90: number | null }]>`
-    SELECT PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY total_spent) as p90
+    SELECT PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY "totalSpent") as p90
     FROM customers
-    WHERE tenant_id = ${tenantId}
-      AND orders_count > 0
+    WHERE "tenantId" = ${tenantId}
+      AND "ordersCount" > 0
   `;
   
   return result[0]?.p90 ?? 0;
@@ -176,23 +177,23 @@ export async function calculateRfmForCustomer(
     p90_spent: number;
   }]>`
     SELECT
-      PERCENTILE_CONT(0.20) WITHIN GROUP (ORDER BY EXTRACT(DAY FROM NOW() - last_order_date)::int) as r_p20,
-      PERCENTILE_CONT(0.40) WITHIN GROUP (ORDER BY EXTRACT(DAY FROM NOW() - last_order_date)::int) as r_p40,
-      PERCENTILE_CONT(0.60) WITHIN GROUP (ORDER BY EXTRACT(DAY FROM NOW() - last_order_date)::int) as r_p60,
-      PERCENTILE_CONT(0.80) WITHIN GROUP (ORDER BY EXTRACT(DAY FROM NOW() - last_order_date)::int) as r_p80,
-      PERCENTILE_CONT(0.20) WITHIN GROUP (ORDER BY orders_count) as f_p20,
-      PERCENTILE_CONT(0.40) WITHIN GROUP (ORDER BY orders_count) as f_p40,
-      PERCENTILE_CONT(0.60) WITHIN GROUP (ORDER BY orders_count) as f_p60,
-      PERCENTILE_CONT(0.80) WITHIN GROUP (ORDER BY orders_count) as f_p80,
-      PERCENTILE_CONT(0.20) WITHIN GROUP (ORDER BY total_spent) as m_p20,
-      PERCENTILE_CONT(0.40) WITHIN GROUP (ORDER BY total_spent) as m_p40,
-      PERCENTILE_CONT(0.60) WITHIN GROUP (ORDER BY total_spent) as m_p60,
-      PERCENTILE_CONT(0.80) WITHIN GROUP (ORDER BY total_spent) as m_p80,
-      PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY total_spent) as p90_spent
+      PERCENTILE_CONT(0.20) WITHIN GROUP (ORDER BY EXTRACT(DAY FROM NOW() - "lastOrderDate")::int) as r_p20,
+      PERCENTILE_CONT(0.40) WITHIN GROUP (ORDER BY EXTRACT(DAY FROM NOW() - "lastOrderDate")::int) as r_p40,
+      PERCENTILE_CONT(0.60) WITHIN GROUP (ORDER BY EXTRACT(DAY FROM NOW() - "lastOrderDate")::int) as r_p60,
+      PERCENTILE_CONT(0.80) WITHIN GROUP (ORDER BY EXTRACT(DAY FROM NOW() - "lastOrderDate")::int) as r_p80,
+      PERCENTILE_CONT(0.20) WITHIN GROUP (ORDER BY "ordersCount") as f_p20,
+      PERCENTILE_CONT(0.40) WITHIN GROUP (ORDER BY "ordersCount") as f_p40,
+      PERCENTILE_CONT(0.60) WITHIN GROUP (ORDER BY "ordersCount") as f_p60,
+      PERCENTILE_CONT(0.80) WITHIN GROUP (ORDER BY "ordersCount") as f_p80,
+      PERCENTILE_CONT(0.20) WITHIN GROUP (ORDER BY "totalSpent") as m_p20,
+      PERCENTILE_CONT(0.40) WITHIN GROUP (ORDER BY "totalSpent") as m_p40,
+      PERCENTILE_CONT(0.60) WITHIN GROUP (ORDER BY "totalSpent") as m_p60,
+      PERCENTILE_CONT(0.80) WITHIN GROUP (ORDER BY "totalSpent") as m_p80,
+      PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY "totalSpent") as p90_spent
     FROM customers
-    WHERE tenant_id = ${tenantId}
-      AND last_order_date IS NOT NULL
-      AND orders_count > 0
+    WHERE "tenantId" = ${tenantId}
+      AND "lastOrderDate" IS NOT NULL
+      AND "ordersCount" > 0
   `;
 
   const p = percentiles[0];
@@ -294,28 +295,28 @@ export async function calculateRfmForTenant(
     WITH customer_metrics AS (
       SELECT 
         id,
-        tenant_id,
-        total_spent,
-        orders_count,
-        EXTRACT(DAY FROM NOW() - last_order_date)::int as days_since_last_order
+        "tenantId",
+        "totalSpent",
+        "ordersCount",
+        EXTRACT(DAY FROM NOW() - "lastOrderDate")::int as days_since_last_order
       FROM customers
-      WHERE tenant_id = ${tenantId}
-        AND last_order_date IS NOT NULL
-        AND orders_count > 0
+      WHERE "tenantId" = ${tenantId}
+        AND "lastOrderDate" IS NOT NULL
+        AND "ordersCount" > 0
     ),
     rfm_scored AS (
       SELECT 
         id,
-        tenant_id,
-        total_spent,
-        orders_count,
+        "tenantId",
+        "totalSpent",
+        "ordersCount",
         days_since_last_order,
         -- Recency: Lower days = higher score (invert with DESC)
         NTILE(5) OVER (ORDER BY days_since_last_order DESC) as recency_score,
         -- Frequency: Higher count = higher score
-        NTILE(5) OVER (ORDER BY orders_count ASC) as frequency_score,
+        NTILE(5) OVER (ORDER BY "ordersCount" ASC) as frequency_score,
         -- Monetary: Higher spent = higher score
-        NTILE(5) OVER (ORDER BY total_spent ASC) as monetary_score
+        NTILE(5) OVER (ORDER BY "totalSpent" ASC) as monetary_score
       FROM customer_metrics
     )
     SELECT * FROM rfm_scored
@@ -341,9 +342,9 @@ export async function calculateRfmForTenant(
             row.monetary_score
           );
           
-          const totalSpent = typeof row.total_spent === 'string' 
-            ? parseFloat(row.total_spent) 
-            : row.total_spent;
+          const totalSpent = typeof row.totalSpent === 'string' 
+            ? parseFloat(row.totalSpent) 
+            : row.totalSpent;
 
           return prisma.customer.update({
             where: { id: row.id },
@@ -414,21 +415,26 @@ export async function getRfmSegmentDistribution(
     _avg: { avgOrderValue: true },
   });
 
-  return segments.map((seg) => ({
-    segment: seg.rfmSegment!,
-    count: seg._count.id,
-    totalSpent: Number(seg._sum.totalSpent ?? 0),
-    avgOrderValue: Number(seg._avg.avgOrderValue ?? 0),
-    percentage: Math.round((seg._count.id / totalCustomers) * 100 * 10) / 10,
-  }));
+  return segments.map((seg) => {
+    const totalSpent = Number(seg._sum.totalSpent ?? 0);
+    const count = seg._count.id;
+    return {
+      segment: seg.rfmSegment!,
+      count,
+      totalSpent,
+      avgSpent: count > 0 ? totalSpent / count : 0,
+      avgOrderValue: Number(seg._avg.avgOrderValue ?? 0),
+      percentage: Math.round((count / totalCustomers) * 100 * 10) / 10,
+    };
+  });
 }
 
 /**
  * Get RFM matrix data (3D distribution of R, F, M scores)
  */
 export async function getRfmMatrix(tenantId: string): Promise<{
-  matrix: Array<{ r: number; f: number; m: number; count: number }>;
-  totalCustomers: number;
+  matrix: Array<{ recencyScore: number; frequencyScore: number; monetaryScore: number; count: number; avgSpent: number }>;
+  summary: { totalCustomers: number; avgRecency: number; avgFrequency: number; avgMonetary: number };
 }> {
   const matrix = await prisma.customer.groupBy({
     by: ['recencyScore', 'frequencyScore', 'monetaryScore'],
@@ -439,20 +445,32 @@ export async function getRfmMatrix(tenantId: string): Promise<{
       monetaryScore: { not: null },
     },
     _count: { id: true },
+    _avg: { totalSpent: true },
   });
 
   const totalCustomers = await prisma.customer.count({
     where: { tenantId, rfmSegment: { not: null } },
   });
 
+  // Calculate averages
+  const avgRecency = matrix.length > 0 ? matrix.reduce((sum, c) => sum + (c.recencyScore || 0), 0) / matrix.length : 0;
+  const avgFrequency = matrix.length > 0 ? matrix.reduce((sum, c) => sum + (c.frequencyScore || 0), 0) / matrix.length : 0;
+  const avgMonetary = matrix.length > 0 ? matrix.reduce((sum, c) => sum + (c.monetaryScore || 0), 0) / matrix.length : 0;
+
   return {
     matrix: matrix.map((cell) => ({
-      r: cell.recencyScore!,
-      f: cell.frequencyScore!,
-      m: cell.monetaryScore!,
+      recencyScore: cell.recencyScore!,
+      frequencyScore: cell.frequencyScore!,
+      monetaryScore: cell.monetaryScore!,
       count: cell._count.id,
+      avgSpent: Number(cell._avg.totalSpent ?? 0),
     })),
-    totalCustomers,
+    summary: {
+      totalCustomers,
+      avgRecency,
+      avgFrequency,
+      avgMonetary,
+    },
   };
 }
 

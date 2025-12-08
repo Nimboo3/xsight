@@ -7,7 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'ShopSight - Customer Data Platform for Shopify',
+  title: 'XSight - Customer Data Platform for Shopify',
   description: 'Multi-tenant customer data platform for Shopify stores with RFM analysis and segmentation',
 };
 

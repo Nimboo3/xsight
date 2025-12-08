@@ -1,27 +1,35 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import Link from 'next/link';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { 
   Users, 
   BarChart3, 
   Target, 
   Zap, 
-  Shield, 
   TrendingUp,
   ArrowRight,
   Check,
-  Play,
   Github,
   ChevronDown,
   Sparkles,
   LineChart,
   PieChart,
-  Activity
+  Activity,
+  Store,
+  Play,
+  Layers,
+  RefreshCw,
+  Shield,
+  LayoutDashboard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/use-auth';
+
+gsap.registerPlugin(ScrollTrigger);
 
 const GITHUB_REPO = 'https://github.com/Nimboo3/dshop';
 
@@ -29,125 +37,261 @@ const features = [
   {
     icon: Users,
     title: 'Customer Intelligence',
-    description: 'Automatically sync and analyze customer data from your Shopify store with powerful RFM segmentation.',
-    color: 'from-blue-500 to-cyan-500',
-  },
-  {
-    icon: BarChart3,
-    title: 'Advanced Analytics',
-    description: 'Visualize revenue trends, customer behavior, and segment performance with interactive dashboards.',
-    color: 'from-purple-500 to-pink-500',
+    description: 'Sync and analyze customer data with powerful RFM segmentation that identifies your most valuable customers.',
+    highlight: 'RFM Analysis',
   },
   {
     icon: Target,
     title: 'Smart Segmentation',
-    description: 'Create dynamic customer segments based on purchase history, behavior, and custom attributes.',
-    color: 'from-orange-500 to-red-500',
+    description: 'Create dynamic segments with our visual builder. Target champions, at-risk customers, and everyone in between.',
+    highlight: '11 Segments',
   },
   {
-    icon: Zap,
-    title: 'Real-time Sync',
-    description: 'Keep your data up-to-date with automatic webhooks and scheduled synchronization.',
-    color: 'from-yellow-500 to-orange-500',
+    icon: BarChart3,
+    title: 'Revenue Analytics',
+    description: 'Visualize revenue trends, cohort retention, and customer lifetime value with interactive dashboards.',
+    highlight: 'Real-time',
   },
   {
-    icon: Shield,
-    title: 'Secure & Reliable',
-    description: 'Enterprise-grade security with encrypted data storage and SOC 2 compliant infrastructure.',
-    color: 'from-green-500 to-emerald-500',
+    icon: RefreshCw,
+    title: 'Auto Sync',
+    description: 'Webhooks and scheduled jobs keep your data fresh. Never worry about manual imports again.',
+    highlight: 'Webhooks',
+  },
+  {
+    icon: Layers,
+    title: 'Multi-tenant',
+    description: 'Built for agencies and multi-store owners. Each store gets isolated, secure data storage.',
+    highlight: 'Secure',
   },
   {
     icon: TrendingUp,
-    title: 'Growth Insights',
-    description: 'Identify your most valuable customers and discover opportunities to increase lifetime value.',
-    color: 'from-indigo-500 to-purple-500',
+    title: 'Churn Prediction',
+    description: 'Our AI-powered churn model identifies at-risk customers before they leave, so you can act fast.',
+    highlight: 'AI-Powered',
   },
 ];
 
-const stats = [
-  { value: '10K+', label: 'Active Stores' },
-  { value: '50M+', label: 'Customers Analyzed' },
-  { value: '99.9%', label: 'Uptime' },
-  { value: '4.9/5', label: 'Rating' },
+const capabilities = [
+  { label: 'Customer Sync', value: 'Real-time' },
+  { label: 'Order Analytics', value: 'Advanced' },
+  { label: 'RFM Segments', value: '11 Types' },
+  { label: 'Data Isolation', value: 'Per Tenant' },
+  { label: 'Webhook Events', value: '9 Types' },
+  { label: 'Cache Strategy', value: 'Redis' },
 ];
-
-const benefits = [
-  'Automatic customer data sync from Shopify',
-  'RFM analysis to identify high-value customers',
-  'Custom segment builder with flexible rules',
-  'Revenue and order analytics dashboard',
-  'Real-time webhook updates',
-  'Export segments for marketing campaigns',
-];
-
-// Custom hook for intersection observer (scroll animations)
-function useInView(options = {}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [isInView, setIsInView] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setIsInView(true);
-      }
-    }, { threshold: 0.1, ...options });
-
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
-
-    return () => observer.disconnect();
-  }, []);
-
-  return [ref, isInView] as const;
-}
 
 export default function HomePage() {
-  const [heroRef, heroInView] = useInView();
-  const [featuresRef, featuresInView] = useInView();
-  const [statsRef, statsInView] = useInView();
-  const [benefitsRef, benefitsInView] = useInView();
-  const [ctaRef, ctaInView] = useInView();
+  const mainRef = useRef<HTMLDivElement>(null);
+  const [navScrolled, setNavScrolled] = useState(false);
+  const { user, isLoading: authLoading } = useAuth();
+
+  useLayoutEffect(() => {
+    const ctx = gsap.context(() => {
+      // Hero Animation
+      const tl = gsap.timeline();
+      tl.from('.hero-text', {
+        y: 100,
+        opacity: 0,
+        duration: 1,
+        stagger: 0.2,
+        ease: 'power4.out'
+      })
+      .from('.hero-cta', {
+        y: 50,
+        opacity: 0,
+        duration: 0.8,
+        ease: 'back.out(1.7)'
+      }, '-=0.5');
+
+      // Dashboard Preview Animation
+      gsap.from('.dashboard-preview', {
+        scrollTrigger: {
+          trigger: '.dashboard-preview',
+          start: 'top 80%',
+          end: 'bottom 20%',
+          toggleActions: 'play none none reverse'
+        },
+        y: 100,
+        opacity: 0,
+        duration: 1,
+        ease: 'power3.out'
+      });
+
+      // Counters Animation
+      gsap.utils.toArray('.counter').forEach((counter: any) => {
+        const endValue = parseInt(counter.getAttribute('data-value') || '0');
+        gsap.to(counter, {
+          scrollTrigger: {
+            trigger: counter,
+            start: 'top 85%',
+            once: true
+          },
+          innerText: endValue,
+          duration: 2,
+          snap: { innerText: 1 },
+          ease: 'power1.inOut'
+        });
+      });
+
+      // Features Animation
+      gsap.fromTo('.feature-card', 
+        { y: 50, opacity: 0 },
+        {
+          scrollTrigger: {
+            trigger: '#features',
+            start: 'top 85%',
+          },
+          y: 0,
+          opacity: 1,
+          duration: 0.8,
+          stagger: 0.1,
+          ease: 'power2.out'
+        }
+      );
+
+      // Capabilities Animation
+      gsap.fromTo('.capability-item', 
+        { x: -50, opacity: 0 },
+        {
+          scrollTrigger: {
+            trigger: '#capabilities',
+            start: 'top 85%'
+          },
+          x: 0,
+          opacity: 1,
+          duration: 0.6,
+          stagger: 0.05,
+          ease: 'power2.out'
+        }
+      );
+
+      gsap.fromTo('.architecture-visual', 
+        { x: 50, opacity: 0 },
+        {
+          scrollTrigger: {
+            trigger: '#capabilities',
+            start: 'top 85%'
+          },
+          x: 0,
+          opacity: 1,
+          duration: 1,
+          ease: 'power2.out',
+          delay: 0.2
+        }
+      );
+
+      // CTA Animation
+      gsap.from('.cta-section', {
+        scrollTrigger: {
+          trigger: '.cta-section',
+          start: 'top 80%'
+        },
+        scale: 0.9,
+        opacity: 0,
+        duration: 0.8,
+        ease: 'back.out(1.7)'
+      });
+
+    }, mainRef);
+
+    return () => ctx.revert();
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setNavScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden">
-      {/* Animated Background */}
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0.5s' }} />
+    <div ref={mainRef} className="min-h-screen text-gray-900 overflow-x-hidden relative">
+      {/* Background Image - Lowest layer */}
+      <div className="fixed inset-0 z-0">
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: 'url(/bg-landing.webp)' }}
+        />
+      </div>
+      
+      {/* Overlay to tint the image */}
+      <div className="fixed inset-0 z-[1] bg-gradient-to-b from-slate-50/90 via-white/80 to-slate-50/90" />
+      
+      {/* Animated Gradient Layer */}
+      <div className="fixed inset-0 z-[2] opacity-60">
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/10 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-violet-500/10 rounded-full blur-3xl animate-float-delayed" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-amber-500/5 rounded-full blur-3xl animate-pulse-slow" />
+      </div>
+      
+      {/* Subtle Pattern on top */}
+      <div className="fixed inset-0 z-[3]">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px]" />
       </div>
 
+      {/* Content - Highest layer */}
+      <div className="relative z-10">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
+      <nav className={cn(
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+        navScrolled 
+          ? "bg-white/90 backdrop-blur-lg border-b shadow-sm" 
+          : "bg-transparent"
+      )}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-2">
-              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/25">
+            {/* Logo */}
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
                 <span className="text-white font-bold text-lg">S</span>
               </div>
-              <span className="font-bold text-xl">ShopSight</span>
+              <span className="font-bold text-xl text-gray-900">XSight</span>
             </div>
+
+            {/* Nav Links */}
             <div className="hidden md:flex items-center gap-8">
-              <a href="#features" className="text-sm text-slate-400 hover:text-white transition-colors">Features</a>
-              <a href="#benefits" className="text-sm text-slate-400 hover:text-white transition-colors">Benefits</a>
-              <a href={GITHUB_REPO} target="_blank" rel="noopener noreferrer" className="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1">
+              <a href="#features" className="text-sm text-gray-600 hover:text-gray-900 transition-colors font-medium">
+                Features
+              </a>
+              <a href="#capabilities" className="text-sm text-gray-600 hover:text-gray-900 transition-colors font-medium">
+                Capabilities
+              </a>
+              <a 
+                href={GITHUB_REPO} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-sm text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-1.5 font-medium"
+              >
                 <Github className="h-4 w-4" />
                 GitHub
               </a>
             </div>
+
+            {/* CTA Buttons */}
             <div className="flex items-center gap-3">
-              <Link href="/auth/login">
-                <Button variant="ghost" className="text-slate-300 hover:text-white hover:bg-white/10">
-                  Sign In
-                </Button>
-              </Link>
-              <Link href="/auth/signup">
-                <Button className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25">
-                  Get Started
-                </Button>
-              </Link>
+              {!authLoading && user ? (
+                <Link href="/app">
+                  <Button className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 font-medium">
+                    <LayoutDashboard className="h-4 w-4 mr-2" />
+                    Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link href="/auth/login">
+                    <Button variant="ghost" className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link href="/auth/signup">
+                    <Button className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 font-medium">
+                      Get Started
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -155,293 +299,303 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <section 
-        ref={heroRef}
-        className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 min-h-screen flex items-center"
+        className="min-h-[90vh] flex items-center justify-center pt-32 pb-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
       >
-        <div className="max-w-7xl mx-auto w-full">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className={cn(
-              "space-y-8 transition-all duration-1000",
-              heroInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
-            )}>
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium">
-                <Sparkles className="h-4 w-4" />
-                Built for Shopify merchants
-              </div>
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-tight">
-                Turn customer data into{' '}
-                <span className="bg-gradient-to-r from-primary via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                  growth insights
-                </span>
-              </h1>
-              <p className="text-xl text-slate-400 max-w-lg leading-relaxed">
-                ShopSight automatically syncs your Shopify customers and orders, 
-                providing powerful RFM analytics and segmentation to help you 
-                understand and grow your business.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
+        <div className="max-w-7xl mx-auto w-full relative z-10">
+          <div className="text-center max-w-5xl mx-auto">
+            {/* Headline */}
+            <h1 className="text-6xl sm:text-7xl lg:text-8xl font-bold tracking-tighter leading-[0.9] mb-8">
+              <span className="block text-gray-900 hero-text">Customer Intelligence</span>
+              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary via-violet-500 to-primary bg-300% animate-gradient pb-4 hero-text">Reimagined.</span>
+            </h1>
+
+            {/* Subheadline */}
+            <p className="text-xl sm:text-2xl text-gray-600 max-w-2xl mx-auto mb-12 leading-relaxed font-light tracking-wide hero-text">
+              The CRM that transforms raw data into actionable insights.
+              <br className="hidden sm:block" />
+              Designed for the modern merchant.
+            </p>
+
+            {/* CTAs */}
+            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center hero-cta">
+              {!authLoading && user ? (
+                <Link href="/app">
+                  <Button size="lg" className="rounded-full text-lg px-10 h-14 bg-gray-900 hover:bg-gray-800 text-white shadow-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <LayoutDashboard className="h-5 w-5 mr-2" />
+                    Go to Dashboard
+                  </Button>
+                </Link>
+              ) : (
                 <Link href="/auth/signup">
-                  <Button size="lg" className="w-full sm:w-auto gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 text-base px-8">
-                    Start Free Trial
-                    <ArrowRight className="h-5 w-5" />
+                  <Button size="lg" className="rounded-full text-lg px-10 h-14 bg-gray-900 hover:bg-gray-800 text-white shadow-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    Get Started
                   </Button>
                 </Link>
-                <Link href="/auth/login">
-                  <Button 
-                    size="lg" 
-                    variant="outline" 
-                    className="w-full sm:w-auto border-slate-700 text-slate-300 hover:bg-white/5 hover:text-white text-base px-8"
-                  >
-                    <Play className="h-5 w-5 mr-2" />
-                    View Demo
-                  </Button>
-                </Link>
-              </div>
-              <div className="flex items-center gap-8 text-sm text-slate-500 pt-4">
-                <div className="flex items-center gap-2">
-                  <Check className="h-5 w-5 text-green-500" />
-                  Free 14-day trial
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="h-5 w-5 text-green-500" />
-                  No credit card required
-                </div>
-              </div>
+              )}
+              <a href="#dashboard-preview">
+                <Button 
+                  size="lg" 
+                  variant="ghost" 
+                  className="rounded-full text-lg px-10 h-14 text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 backdrop-blur-sm transition-all duration-300"
+                >
+                  View Demo
+                </Button>
+              </a>
             </div>
-
-            {/* Dashboard Preview */}
-            <div className={cn(
-              "relative transition-all duration-1000 delay-300",
-              heroInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
-            )}>
-              <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-purple-500/20 to-cyan-500/20 rounded-3xl blur-2xl" />
-              <div className="relative bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-2xl">
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="w-3 h-3 rounded-full bg-red-500" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
-                  <span className="ml-4 text-sm text-slate-500">ShopSight Dashboard</span>
-                </div>
-                
-                {/* Mini Dashboard */}
-                <div className="space-y-4">
-                  {/* Stats Row */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: 'Total Revenue', value: '$124,590', icon: LineChart, trend: '+12%' },
-                      { label: 'Customers', value: '2,847', icon: Users, trend: '+8%' },
-                      { label: 'Orders', value: '1,234', icon: Activity, trend: '+15%' },
-                    ].map((stat, i) => (
-                      <div key={i} className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
-                        <div className="flex items-center justify-between mb-1">
-                          <stat.icon className="h-4 w-4 text-slate-500" />
-                          <span className="text-xs text-green-400">{stat.trend}</span>
-                        </div>
-                        <p className="text-lg font-bold text-white">{stat.value}</p>
-                        <p className="text-xs text-slate-500">{stat.label}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Chart Placeholder */}
-                  <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm text-slate-400">Revenue Trend</span>
-                      <PieChart className="h-4 w-4 text-slate-500" />
-                    </div>
-                    <div className="flex items-end gap-1 h-20">
-                      {[40, 65, 45, 80, 55, 90, 70, 85, 60, 95, 75, 100].map((h, i) => (
-                        <div 
-                          key={i} 
-                          className="flex-1 bg-gradient-to-t from-primary to-primary/50 rounded-t transition-all duration-500"
-                          style={{ height: `${h}%` }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Segments Preview */}
-                  <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
-                    <span className="text-sm text-slate-400 mb-3 block">Customer Segments</span>
-                    <div className="space-y-2">
-                      {[
-                        { name: 'Champions', value: 85, color: 'bg-green-500' },
-                        { name: 'Loyal', value: 60, color: 'bg-blue-500' },
-                        { name: 'At Risk', value: 25, color: 'bg-orange-500' },
-                      ].map((seg, i) => (
-                        <div key={i} className="flex items-center gap-3">
-                          <span className="text-xs text-slate-400 w-20">{seg.name}</span>
-                          <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
-                            <div 
-                              className={cn("h-full rounded-full transition-all duration-1000", seg.color)}
-                              style={{ width: heroInView ? `${seg.value}%` : '0%' }}
-                            />
-                          </div>
-                          <span className="text-xs text-slate-400 w-8">{seg.value}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Scroll Indicator */}
-          <div className="flex justify-center mt-16 animate-bounce">
-            <a href="#stats" className="text-slate-500 hover:text-white transition-colors">
-              <ChevronDown className="h-8 w-8" />
-            </a>
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section id="stats" ref={statsRef} className="py-20 px-4 sm:px-6 lg:px-8 border-y border-slate-800">
-        <div className="max-w-7xl mx-auto">
-          <div className={cn(
-            "grid grid-cols-2 md:grid-cols-4 gap-8 transition-all duration-1000",
-            statsInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
-          )}>
-            {stats.map((stat, index) => (
-              <div 
-                key={index} 
-                className="text-center"
-                style={{ transitionDelay: `${index * 100}ms` }}
-              >
-                <div className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent mb-2">
-                  {stat.value}
+      {/* Dashboard Preview Section */}
+      <section 
+        id="dashboard-preview"
+        className="py-16 px-4 sm:px-6 lg:px-8 mt-20 dashboard-preview"
+      >
+        <div className="max-w-6xl mx-auto">
+          <div className="relative">
+            {/* Glow Effect */}
+            <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-violet-500/20 to-primary/20 rounded-3xl blur-2xl opacity-50" />
+            
+            {/* Dashboard Card */}
+            <div className="relative bg-white rounded-2xl shadow-2xl shadow-gray-200/50 border border-gray-200 overflow-hidden">
+              {/* Browser Chrome */}
+              <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200">
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-red-400" />
+                  <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                  <div className="w-3 h-3 rounded-full bg-green-400" />
                 </div>
-                <div className="text-slate-500 text-sm">{stat.label}</div>
+                <div className="flex-1 flex justify-center">
+                  <div className="px-4 py-1 bg-white rounded-lg border text-sm text-gray-500 flex items-center gap-2">
+                    <Shield className="h-3.5 w-3.5 text-green-500" />
+                    app.xsight.com/dashboard
+                  </div>
+                </div>
               </div>
-            ))}
+
+              {/* Dashboard Content */}
+              <div className="p-6 sm:p-8 bg-gradient-to-b from-slate-50 to-white">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">Dashboard Overview</h2>
+                    <p className="text-sm text-gray-500">Last synced: Just now</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="px-3 py-1.5 bg-primary/10 text-primary text-sm font-medium rounded-lg">
+                      Last 30 days
+                    </div>
+                  </div>
+                </div>
+
+                {/* KPI Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                  {[
+                    { label: 'Total Revenue', value: 124590, prefix: '$', icon: LineChart, trend: '+12.5%', color: 'text-emerald-600 bg-emerald-50' },
+                    { label: 'Customers', value: 2847, prefix: '', icon: Users, trend: '+8.2%', color: 'text-blue-600 bg-blue-50' },
+                    { label: 'Orders', value: 12439, prefix: '', icon: Activity, trend: '+15.3%', color: 'text-violet-600 bg-violet-50' },
+                  ].map((stat, i) => (
+                    <div 
+                      key={i} 
+                      className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className={cn("p-2 rounded-lg", stat.color)}>
+                          <stat.icon className="h-4 w-4" />
+                        </div>
+                        <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                          {stat.trend}
+                        </span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900 mb-1">
+                        {stat.prefix}
+                        <span className="counter" data-value={stat.value}>0</span>
+                      </p>
+                      <p className="text-sm text-gray-500">{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Charts Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Revenue Chart */}
+                  <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="font-medium text-gray-900">Revenue Trend</span>
+                      <PieChart className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <div className="flex items-end gap-1 h-24">
+                      {[35, 50, 40, 65, 45, 75, 55, 80, 60, 85, 70, 95].map((h, i) => (
+                        <div 
+                          key={i} 
+                          className="flex-1 bg-primary rounded-t"
+                          style={{ height: `${h}%` }}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex justify-between mt-2 text-xs text-gray-400">
+                      <span>Jan</span>
+                      <span>Dec</span>
+                    </div>
+                  </div>
+
+                  {/* Segments Chart */}
+                  <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="font-medium text-gray-900">Customer Segments</span>
+                      <Target className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <div className="space-y-3">
+                      {[
+                        { name: 'Champions', value: 32, color: 'bg-emerald-500' },
+                        { name: 'Loyal', value: 28, color: 'bg-blue-500' },
+                        { name: 'Promising', value: 18, color: 'bg-violet-500' },
+                        { name: 'At Risk', value: 12, color: 'bg-amber-500' },
+                      ].map((seg, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <span className="text-sm text-gray-600 w-24">{seg.name}</span>
+                          <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div 
+                              className={cn("h-full rounded-full", seg.color)}
+                              style={{ width: `${seg.value * 3}%` }}
+                            />
+                          </div>
+                          <span className="text-sm font-medium text-gray-900 w-10">{seg.value}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section id="features" ref={featuresRef} className="py-24 px-4 sm:px-6 lg:px-8">
+      <section id="features" className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className={cn(
-            "text-center mb-16 transition-all duration-1000",
-            featuresInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
-          )}>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-6">
-              <Zap className="h-4 w-4" />
-              Powerful Features
-            </div>
-            <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              Everything you need to understand your customers
+          {/* Section Header */}
+          <div className="text-center mb-12">
+            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
+              Everything you need to
+              <br />understand your customers
             </h2>
-            <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-              Powerful features designed specifically for Shopify merchants who want 
-              to make data-driven decisions.
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              From data ingestion to actionable insights — XSight gives you the complete 
+              toolkit for customer intelligence.
             </p>
           </div>
+
+          {/* Feature Grid */}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => (
-              <Card 
+              <div 
                 key={index} 
-                className={cn(
-                  "bg-slate-900/50 border-slate-800 hover:border-slate-700 transition-all duration-500 hover:scale-[1.02] hover:shadow-xl group",
-                  featuresInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
-                )}
-                style={{ transitionDelay: `${index * 100}ms` }}
+                className="group relative bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-lg hover:border-primary/30 transition-all duration-300 feature-card"
               >
-                <CardContent className="p-6">
-                  <div className={cn(
-                    "h-14 w-14 rounded-xl bg-gradient-to-br flex items-center justify-center mb-4 shadow-lg transition-transform group-hover:scale-110",
-                    feature.color
-                  )}>
-                    <feature.icon className="h-7 w-7 text-white" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2 text-white">{feature.title}</h3>
-                  <p className="text-slate-400 leading-relaxed">{feature.description}</p>
-                </CardContent>
-              </Card>
+                {/* Highlight Badge */}
+                <div className="absolute top-6 right-6">
+                  <span className="text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+                    {feature.highlight}
+                  </span>
+                </div>
+
+                {/* Icon */}
+                <div className="h-12 w-12 rounded-xl bg-gray-100 group-hover:bg-primary/10 flex items-center justify-center mb-4 transition-colors">
+                  <feature.icon className="h-6 w-6 text-gray-600 group-hover:text-primary transition-colors" />
+                </div>
+
+                {/* Content */}
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{feature.title}</h3>
+                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Benefits Section */}
-      <section id="benefits" ref={benefitsRef} className="py-24 px-4 sm:px-6 lg:px-8 bg-slate-900/50">
+      {/* Capabilities Section */}
+      <section id="capabilities" className="py-24 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className={cn(
-              "transition-all duration-1000",
-              benefitsInView ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-10"
-            )}>
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-medium mb-6">
-                <Check className="h-4 w-4" />
-                Why Choose ShopSight
-              </div>
-              <h2 className="text-4xl sm:text-5xl font-bold mb-8">
-                Why Shopify merchants love ShopSight
+            {/* Left Content */}
+            <div>
+              <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6 capability-item">
+                Production-ready
+                <br />infrastructure
               </h2>
-              <div className="space-y-4">
-                {benefits.map((benefit, index) => (
+              <p className="text-lg text-gray-600 mb-8 leading-relaxed capability-item">
+                XSight is built with enterprise-grade architecture. Multi-tenant data isolation, 
+                async job processing with BullMQ, and Redis caching ensure your data is always 
+                secure and fast.
+              </p>
+
+              {/* Capabilities Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                {capabilities.map((cap, i) => (
                   <div 
-                    key={index} 
-                    className={cn(
-                      "flex items-start gap-4 p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 transition-all duration-500 hover:bg-slate-800 hover:border-slate-600",
-                      benefitsInView ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-10"
-                    )}
-                    style={{ transitionDelay: `${index * 100}ms` }}
+                    key={i}
+                    className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 shadow-sm capability-item"
                   >
-                    <div className="h-6 w-6 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                      <Check className="h-4 w-4 text-green-400" />
+                    <div className="h-2 w-2 rounded-full bg-primary" />
+                    <div>
+                      <p className="text-sm text-gray-500">{cap.label}</p>
+                      <p className="font-semibold text-gray-900">{cap.value}</p>
                     </div>
-                    <span className="text-slate-300">{benefit}</span>
                   </div>
                 ))}
               </div>
-              <div className="mt-8">
-                <Link href="/auth/signup">
-                  <Button size="lg" className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25">
-                    Get Started Free
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-              </div>
             </div>
-            
-            {/* Animated Preview */}
-            <div className={cn(
-              "relative transition-all duration-1000 delay-300",
-              benefitsInView ? "opacity-100 translate-x-0" : "opacity-0 translate-x-10"
-            )}>
-              <div className="absolute -inset-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-3xl blur-2xl" />
-              <div className="relative bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
-                <div className="text-sm text-slate-500 mb-6">Customer Segment Performance</div>
-                <div className="space-y-6">
-                  {['Champions', 'Loyal Customers', 'Potential Loyalists', 'New Customers', 'At Risk'].map((segment, i) => {
-                    const values = [85, 60, 45, 35, 25];
-                    return (
-                      <div key={segment} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-white">{segment}</span>
-                          <span className="text-sm text-slate-400">{values[i]}%</span>
-                        </div>
-                        <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
-                          <div 
-                            className={cn(
-                              "h-full rounded-full transition-all duration-1000 ease-out",
-                              i === 0 ? "bg-gradient-to-r from-green-500 to-emerald-400" :
-                              i === 1 ? "bg-gradient-to-r from-blue-500 to-cyan-400" :
-                              i === 2 ? "bg-gradient-to-r from-purple-500 to-pink-400" :
-                              i === 3 ? "bg-gradient-to-r from-yellow-500 to-orange-400" :
-                              "bg-gradient-to-r from-red-500 to-orange-400"
-                            )}
-                            style={{ 
-                              width: benefitsInView ? `${values[i]}%` : '0%',
-                              transitionDelay: `${i * 150}ms`
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+
+            {/* Right - Architecture Visual */}
+            <div className="architecture-visual">
+              <div className="relative">
+                <div className="absolute -inset-4 bg-gradient-to-r from-primary/10 to-violet-500/10 rounded-3xl blur-2xl" />
+                <div className="relative bg-gray-900 rounded-2xl p-6 shadow-2xl overflow-hidden">
+                  {/* Terminal Header */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="flex gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-red-500" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                      <div className="w-3 h-3 rounded-full bg-green-500" />
+                    </div>
+                    <span className="text-gray-500 text-sm ml-2">Architecture</span>
+                  </div>
+
+                  {/* Architecture Diagram */}
+                  <div className="font-mono text-sm space-y-3">
+                    <div className="text-gray-400">
+                      <span className="text-emerald-400">Shopify</span> → Webhooks → <span className="text-blue-400">BullMQ</span>
+                    </div>
+                    <div className="text-gray-400 pl-4">
+                      └── <span className="text-yellow-400">customer-sync</span>
+                    </div>
+                    <div className="text-gray-400 pl-4">
+                      └── <span className="text-yellow-400">order-sync</span>
+                    </div>
+                    <div className="text-gray-400 pl-4">
+                      └── <span className="text-yellow-400">rfm-calculation</span>
+                    </div>
+                    <div className="text-gray-400 mt-4">
+                      <span className="text-blue-400">Workers</span> → <span className="text-violet-400">PostgreSQL</span>
+                    </div>
+                    <div className="text-gray-400 pl-4">
+                      └── <span className="text-emerald-400">Prisma ORM</span> (Multi-tenant)
+                    </div>
+                    <div className="text-gray-400 mt-4">
+                      <span className="text-red-400">Redis</span> → Cache Layer
+                    </div>
+                    <div className="text-gray-400 pl-4">
+                      └── TTL: 60s / 5min / 1hr / 24hr
+                    </div>
+                  </div>
+
+                  {/* Animated Cursor */}
+                  <div className="mt-4 flex items-center gap-1 text-gray-400">
+                    <span className="text-emerald-400">$</span>
+                    <span className="animate-pulse">_</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -450,41 +604,49 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section ref={ctaRef} className="py-24 px-4 sm:px-6 lg:px-8">
-        <div className={cn(
-          "max-w-4xl mx-auto text-center transition-all duration-1000",
-          ctaInView ? "opacity-100 scale-100" : "opacity-0 scale-95"
-        )}>
+      <section className="py-24 px-4 sm:px-6 lg:px-8 cta-section">
+        <div className="max-w-4xl mx-auto text-center">
           <div className="relative">
-            <div className="absolute -inset-8 bg-gradient-to-r from-primary/30 via-purple-500/30 to-cyan-500/30 rounded-3xl blur-3xl" />
-            <div className="relative bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700 rounded-3xl p-12 sm:p-16">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-6">
+            <div className="absolute -inset-8 bg-gradient-to-r from-primary/10 via-violet-500/10 to-primary/10 rounded-3xl blur-2xl" />
+            <div className="relative bg-white border border-gray-200 rounded-3xl p-12 sm:p-16 shadow-xl">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
                 <Sparkles className="h-4 w-4" />
-                Start Today
+                Get Started Today
               </div>
-              <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-                Ready to understand your customers better?
+              <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
+                Ready to understand your
+                <br />customers better?
               </h2>
-              <p className="text-xl text-slate-400 mb-10 max-w-2xl mx-auto">
-                Join thousands of Shopify merchants using ShopSight to grow their business 
-                with data-driven customer insights.
+              <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
+                Connect your Shopify store in minutes. Get actionable insights 
+                about your customers and grow your business with data.
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
-                <Link href="/auth/signup">
-                  <Button size="lg" className="w-full sm:w-auto gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 text-base px-8">
-                    Start Your Free Trial
-                    <ArrowRight className="h-5 w-5" />
-                  </Button>
-                </Link>
-                <Link href="/auth/login">
+                {!authLoading && user ? (
+                  <Link href="/app">
+                    <Button size="lg" className="w-full sm:w-auto gap-2 bg-primary hover:bg-primary/90 shadow-xl shadow-primary/25 text-base px-8 h-12">
+                      <LayoutDashboard className="h-5 w-5" />
+                      Go to Dashboard
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link href="/auth/signup">
+                    <Button size="lg" className="w-full sm:w-auto gap-2 bg-primary hover:bg-primary/90 shadow-xl shadow-primary/25 text-base px-8 h-12">
+                      Start Free Trial
+                      <ArrowRight className="h-5 w-5" />
+                    </Button>
+                  </Link>
+                )}
+                <a href={GITHUB_REPO} target="_blank" rel="noopener noreferrer">
                   <Button 
                     size="lg" 
                     variant="outline" 
-                    className="w-full sm:w-auto border-slate-600 text-slate-300 hover:bg-white/5 hover:text-white text-base px-8"
+                    className="w-full sm:w-auto border-gray-300 text-gray-700 hover:bg-gray-50 text-base px-8 h-12 gap-2"
                   >
-                    Sign In
+                    <Github className="h-5 w-5" />
+                    View on GitHub
                   </Button>
-                </Link>
+                </a>
               </div>
             </div>
           </div>
@@ -492,30 +654,47 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800 py-12 px-4 sm:px-6 lg:px-8">
+      <footer className="border-t border-gray-200 py-6 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-                <span className="text-white font-bold">S</span>
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            {/* Logo */}
+            <div className="flex items-center gap-2.5">
+              <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
+                <span className="text-white font-bold text-sm">S</span>
               </div>
-              <span className="font-semibold">ShopSight</span>
+              <span className="font-semibold text-gray-900">XSight</span>
             </div>
-            <div className="flex flex-wrap justify-center items-center gap-6 text-sm text-slate-500">
-              <a href={`${GITHUB_REPO}#readme`} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href={`${GITHUB_REPO}#readme`} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Terms of Service</a>
-              <a href={`${GITHUB_REPO}#readme`} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Support</a>
-              <a href={GITHUB_REPO} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors flex items-center gap-1">
-                <Github className="h-4 w-4" />
+
+            {/* Links */}
+            <div className="flex flex-wrap justify-center items-center gap-6 text-xs text-gray-600">
+              <Link href="/privacy" className="hover:text-gray-900 transition-colors">
+                Privacy Policy
+              </Link>
+              <Link href="/terms" className="hover:text-gray-900 transition-colors">
+                Terms of Service
+              </Link>
+              <a href="mailto:support@xsight.com" className="hover:text-gray-900 transition-colors">
+                Support
+              </a>
+              <a 
+                href={GITHUB_REPO} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="hover:text-gray-900 transition-colors flex items-center gap-1"
+              >
+                <Github className="h-3.5 w-3.5" />
                 GitHub
               </a>
             </div>
-            <p className="text-sm text-slate-500">
-              © {new Date().getFullYear()} ShopSight. All rights reserved.
+
+            {/* Copyright */}
+            <p className="text-xs text-gray-500">
+              © {new Date().getFullYear()} XSight. All rights reserved.
             </p>
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }

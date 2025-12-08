@@ -113,8 +113,9 @@ export async function tenantMiddleware(
     }
 
     // Get user's tenant
-    const tenant = await prisma.tenant.findUnique({
-      where: { userId: req.user.id },
+    // NOTE: If TypeScript errors about userId, run: npx prisma generate
+    const tenant = await prisma.tenant.findFirst({
+      where: { userId: req.user.id } as any,
       select: {
         id: true,
         shopifyDomain: true,

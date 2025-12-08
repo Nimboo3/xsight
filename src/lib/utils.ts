@@ -8,7 +8,10 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Format currency value
  */
-export function formatCurrency(value: number, currency = 'USD'): string {
+export function formatCurrency(value: number | null | undefined, currency = 'USD'): string {
+  if (value === null || value === undefined || isNaN(value)) {
+    return '$0';
+  }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
@@ -20,40 +23,51 @@ export function formatCurrency(value: number, currency = 'USD'): string {
 /**
  * Format number with locale
  */
-export function formatNumber(value: number): string {
+export function formatNumber(value: number | null | undefined): string {
+  if (value === null || value === undefined || isNaN(value)) {
+    return '0';
+  }
   return new Intl.NumberFormat('en-US').format(value);
 }
 
 /**
  * Format date
  */
-export function formatDate(date: Date | string): string {
+export function formatDate(date: Date | string | null | undefined): string {
+  if (!date) return 'N/A';
+  const parsed = new Date(date);
+  if (isNaN(parsed.getTime())) return 'N/A';
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-  }).format(new Date(date));
+  }).format(parsed);
 }
 
 /**
  * Format date with time
  */
-export function formatDateTime(date: Date | string): string {
+export function formatDateTime(date: Date | string | null | undefined): string {
+  if (!date) return 'N/A';
+  const parsed = new Date(date);
+  if (isNaN(parsed.getTime())) return 'N/A';
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(date));
+  }).format(parsed);
 }
 
 /**
  * Format relative time (e.g., "2 days ago")
  */
-export function formatRelativeTime(date: Date | string): string {
-  const now = new Date();
+export function formatRelativeTime(date: Date | string | null | undefined): string {
+  if (!date) return 'N/A';
   const past = new Date(date);
+  if (isNaN(past.getTime())) return 'N/A';
+  const now = new Date();
   const diffMs = now.getTime() - past.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 

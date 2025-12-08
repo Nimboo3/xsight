@@ -70,8 +70,8 @@ export function AuthGuard({
     }
 
     // Redirect to connect page if store required but not connected
-    if (requireStore && !hasStore && pathname !== '/app/connect') {
-      router.push('/app/connect');
+    if (requireStore && !hasStore && pathname !== '/connect') {
+      router.push('/connect');
       return;
     }
   }, [isAuthenticated, isLoading, hasStore, requireStore, router, pathname, loginUrl]);
