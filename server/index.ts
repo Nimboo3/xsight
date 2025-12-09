@@ -51,6 +51,8 @@ const allowedOrigins = config.isDev
       config.shopifyAppUrl,
       config.frontendUrl,
       /\.vercel\.app$/,      // Allow any Vercel preview URLs
+      /\.railway\.app$/,     // Allow any Railway URLs
+      /\.up\.railway\.app$/, // Allow Railway public URLs
       /\.myshopify\.com$/,   // Allow Shopify embedded app
     ].filter(Boolean);
 

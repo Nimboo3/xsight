@@ -15,6 +15,7 @@
     "start:server": "node dist/server/index.js",
     "start:client": "next start -p 3001",
     "start:worker": "node dist/server/services/worker.main.js",
+    "start:backend": "node dist/server/index.js & node dist/server/services/worker.main.js",
     "setup": "prisma generate && prisma migrate deploy",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
