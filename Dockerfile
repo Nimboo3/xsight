@@ -49,11 +49,11 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 COPY package.json pnpm-lock.yaml ./
 COPY prisma ./prisma/
 
-# Install ALL dependencies (needed for Prisma client generation)
-RUN pnpm install --frozen-lockfile
+# Install production dependencies (prisma is now a prod dependency)
+RUN pnpm install --frozen-lockfile --prod
 
-# Generate Prisma client in production stage using pnpm exec
-RUN pnpm exec prisma generate
+# Generate Prisma client in production stage
+RUN pnpm prisma generate
 
 # Copy built server
 COPY --from=server-builder /app/dist ./dist
