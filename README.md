@@ -6,8 +6,6 @@
 [![Frontend](https://img.shields.io/badge/frontend-vercel-black)](https://xsight-frontend-production.up.railway.app)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 
-![XSight Dashboard](./docs/images/dashboard-overview.png)
-*Main dashboard showing real-time analytics and customer insights*
 
 ---
 
