@@ -183,3 +183,78 @@ export async function getQueuesHealth(): Promise<Record<string, unknown>> {
   
   return health;
 }
+
+/**
+ * Clean stale/stuck jobs from all queues
+ * Call this on startup to clear jobs from previous deployments
+ */
+export async function cleanStaleJobs(): Promise<void> {
+  log.info('Cleaning stale jobs from queues...');
+  
+  for (const queue of allQueues) {
+    try {
+      // Get stale jobs (stuck for more than 1 hour)
+      const staleThreshold = 60 * 60 * 1000; // 1 hour
+      
+      // Clean delayed jobs that are too old
+      const delayed = await queue.getDelayed();
+      let cleanedDelayed = 0;
+      for (const job of delayed) {
+        const jobAge = Date.now() - (job.timestamp || 0);
+        if (jobAge > staleThreshold) {
+          await job.remove();
+          cleanedDelayed++;
+        }
+      }
+      
+      // Clean waiting jobs that are too old
+      const waiting = await queue.getWaiting();
+      let cleanedWaiting = 0;
+      for (const job of waiting) {
+        const jobAge = Date.now() - (job.timestamp || 0);
+        if (jobAge > staleThreshold) {
+          await job.remove();
+          cleanedWaiting++;
+        }
+      }
+      
+      // Clean failed jobs older than 1 day
+      const failed = await queue.getFailed();
+      let cleanedFailed = 0;
+      for (const job of failed) {
+        const jobAge = Date.now() - (job.timestamp || 0);
+        if (jobAge > 24 * 60 * 60 * 1000) { // 24 hours
+          await job.remove();
+          cleanedFailed++;
+        }
+      }
+      
+      // Obliterate stuck active jobs (jobs that started but never finished)
+      // This is aggressive but necessary for stuck deployments
+      const active = await queue.getActive();
+      let cleanedActive = 0;
+      for (const job of active) {
+        const processedAge = Date.now() - (job.processedOn || job.timestamp || 0);
+        if (processedAge > staleThreshold) {
+          // Move to failed instead of removing completely
+          await job.moveToFailed(new Error('Job stuck from previous deployment'), 'stale-cleanup');
+          cleanedActive++;
+        }
+      }
+      
+      if (cleanedDelayed + cleanedWaiting + cleanedFailed + cleanedActive > 0) {
+        log.info({
+          queue: queue.name,
+          cleanedDelayed,
+          cleanedWaiting,
+          cleanedFailed,
+          cleanedActive,
+        }, 'Cleaned stale jobs');
+      }
+    } catch (error) {
+      log.error({ queue: queue.name, error }, 'Failed to clean stale jobs');
+    }
+  }
+  
+  log.info('Stale job cleanup complete');
+}

@@ -7,6 +7,7 @@ import { logger } from '../lib/logger';
 import { prisma } from '../config/database';
 import { redis } from '../config/redis';
 import { allWorkers, closeAllWorkers } from './worker';
+import { cleanStaleJobs } from './queue';
 
 const log = logger.child({ module: 'worker-main' });
 
@@ -28,6 +29,13 @@ async function main(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
   log.info({ status: redis.status }, 'Redis connection status');
+
+  // Clean stale jobs from previous deployments
+  try {
+    await cleanStaleJobs();
+  } catch (error) {
+    log.warn({ error }, 'Failed to clean stale jobs (non-fatal)');
+  }
 
   log.info(
     { workers: allWorkers.map((w) => w.name) },
