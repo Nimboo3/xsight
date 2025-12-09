@@ -15,6 +15,7 @@
 
 [![Demo Video Thumbnail](./docs/images/video-thumbnail.png)](_YOUR_YOUTUBE_OR_LOOM_LINK_)
 
+
 **What's covered:**
 - ✅ Shopify OAuth integration and store connection
 - ✅ Real-time data sync with WebSocket progress tracking
@@ -23,6 +24,8 @@
 - ✅ Multi-tenancy and deployment architecture
 
 ---
+<img width="1533" height="1223" alt="diagram-export-12-9-2025-1_36_44-PM" src="https://github.com/user-attachments/assets/522dcfe0-2d9a-4236-acb0-84ef5ac4e2a9" />
+
 
 <img width="1897" height="918" alt="Screenshot 2025-12-09 125957" src="https://github.com/user-attachments/assets/b31f03c0-0287-4a98-a92f-cf5e83871ac4" />
 
