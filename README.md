@@ -26,6 +26,15 @@
 
 ---
 
+<img width="1897" height="918" alt="Screenshot 2025-12-09 125957" src="https://github.com/user-attachments/assets/b31f03c0-0287-4a98-a92f-cf5e83871ac4" />
+
+<img width="1901" height="918" alt="Screenshot 2025-12-09 130020" src="https://github.com/user-attachments/assets/bb0e022f-6844-44a0-b1a6-aef9060b41cd" />
+<img width="1898" height="913" alt="Screenshot 2025-12-09 130033" src="https://github.com/user-attachments/assets/b0983489-3078-4122-a051-26ea2d1de550" />
+<img width="1895" height="917" alt="Screenshot 2025-12-09 130052" src="https://github.com/user-attachments/assets/b22cb17a-5c6c-4d32-91b1-250694830bfa" />
+<img width="1900" height="913" alt="Screenshot 2025-12-09 130101" src="https://github.com/user-attachments/assets/d978070f-94a6-414d-a0cd-69b4647f7803" />
+<img width="1898" height="914" alt="Screenshot 2025-12-09 130114" src="https://github.com/user-attachments/assets/9cfca774-e321-4b81-bcaf-a37e508ec346" />
+<img width="1896" height="916" alt="Screenshot 2025-12-09 130125" src="https://github.com/user-attachments/assets/4039575c-1a64-49a7-a3a0-f36efc968fca" />
+
 ## 🌟 Features
 
 ### Analytics & Segmentation
