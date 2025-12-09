@@ -17,7 +17,7 @@ import { registerWebhooks } from '../services/webhooks';
 import { customerSyncQueue, orderSyncQueue } from '../services/queue';
 import { verifyJwt, JWT_COOKIE_NAME } from '../lib/jwt';
 
-export const shopifyRouter = Router();
+export const shopifyRouter: Router = Router();
 
 // Apply stricter rate limiting for auth routes
 shopifyRouter.use(authRateLimiter);

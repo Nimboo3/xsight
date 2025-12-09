@@ -14,7 +14,7 @@ import { tenantsRouter } from './tenants.routes';
 import { authWithTenantMiddleware } from '../middleware';
 import { tenantRateLimitMiddleware } from '../middleware/tenantRateLimit.middleware';
 
-export const v1Router = Router();
+export const v1Router: Router = Router();
 
 // Apply authentication + tenant middleware to all v1 routes
 // This requires both a logged-in user AND a connected Shopify store

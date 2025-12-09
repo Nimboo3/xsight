@@ -30,8 +30,7 @@ export function signJwt(
 ): string {
   return jwt.sign(payload, config.jwtSecret, { 
     expiresIn: expiresIn || JWT_EXPIRES_IN,
-    algorithm: 'HS256',
-  });
+  } as jwt.SignOptions);
 }
 
 /**

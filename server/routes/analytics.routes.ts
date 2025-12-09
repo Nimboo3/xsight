@@ -21,7 +21,7 @@ import {
 
 const log = logger.child({ module: 'analytics-routes' });
 
-export const analyticsRouter = Router();
+export const analyticsRouter: Router = Router();
 
 // All routes require tenant context
 analyticsRouter.use(tenantMiddleware);

@@ -61,6 +61,9 @@ interface ShopifyCustomerNode {
     amount: string;
     currencyCode: string;
   };
+  // Aliases for backward compatibility
+  ordersCount?: number;
+  totalSpent?: { amount: string };
   tags: string[];
   addresses: Array<{
     city: string | null;
@@ -199,8 +202,8 @@ export async function syncCustomers(
                 firstName: edge.node.firstName,
                 lastName: edge.node.lastName,
                 phone: edge.node.phone,
-                ordersCount: edge.node.ordersCount,
-                totalSpent: parseFloat(edge.node.totalSpent.amount),
+                ordersCount: edge.node.numberOfOrders,
+                totalSpent: parseFloat(edge.node.amountSpent.amount),
               },
             });
             result.updated++;
@@ -313,8 +316,8 @@ export async function syncSingleCustomer(
         firstName: node.firstName,
         lastName: node.lastName,
         phone: node.phone,
-        ordersCount: node.ordersCount,
-        totalSpent: parseFloat(node.totalSpent.amount),
+        ordersCount: node.numberOfOrders,
+        totalSpent: parseFloat(node.amountSpent.amount),
       },
     });
   }
@@ -327,8 +330,8 @@ export async function syncSingleCustomer(
       firstName: node.firstName,
       lastName: node.lastName,
       phone: node.phone,
-      ordersCount: node.ordersCount,
-      totalSpent: parseFloat(node.totalSpent.amount),
+      ordersCount: node.numberOfOrders,
+      totalSpent: parseFloat(node.amountSpent.amount),
       shopifyCreatedAt: new Date(node.createdAt),
     },
   });

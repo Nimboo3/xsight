@@ -15,7 +15,7 @@ import { signJwt, verifyJwt, JWT_COOKIE_NAME, JWT_COOKIE_OPTIONS } from '../lib/
 import { hashPassword, verifyPassword } from '../lib/password';
 import { logger } from '../lib/logger';
 
-export const authRouter = Router();
+export const authRouter: Router = Router();
 
 const log = logger.child({ module: 'auth-routes' });
 

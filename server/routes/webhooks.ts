@@ -6,7 +6,7 @@ import { verifyWebhookHmac } from '../lib/hmac';
 import { webhookQueue, WebhookJobData } from '../services/queue';
 import { webhookRateLimiter } from '../middleware';
 
-export const webhooksRouter = Router();
+export const webhooksRouter: Router = Router();
 
 // Apply webhook-specific rate limiting
 webhooksRouter.use(webhookRateLimiter);

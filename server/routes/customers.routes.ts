@@ -12,7 +12,7 @@ import { ValidationError, NotFoundError } from '../lib/errors';
 
 const log = logger.child({ module: 'customers-routes' });
 
-export const customersRouter = Router();
+export const customersRouter: Router = Router();
 
 // Query params schema
 const listQuerySchema = z.object({

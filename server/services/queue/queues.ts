@@ -67,7 +67,7 @@ export interface OrderSyncJobData {
 export interface RfmCalculationJobData {
   tenantId: string;
   customerId?: string; // If provided, calculate for single customer
-  triggeredBy: 'order' | 'manual' | 'scheduled';
+  triggeredBy: 'order' | 'manual' | 'scheduled' | 'sync';
 }
 
 export interface SegmentUpdateJobData {

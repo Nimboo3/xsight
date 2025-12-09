@@ -7,7 +7,7 @@ import { decrypt } from '../lib/crypto';
 import { UnauthorizedError } from '../lib/errors';
 import { getQueuesHealth } from '../services/queue';
 
-export const apiRouter = Router();
+export const apiRouter: Router = Router();
 
 // Middleware to verify session
 async function verifySession(req: Request, res: Response, next: NextFunction): Promise<void> {

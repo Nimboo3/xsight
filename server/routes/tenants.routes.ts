@@ -20,7 +20,7 @@ import {
 
 const log = logger.child({ module: 'tenants-routes' });
 
-export const tenantsRouter = Router();
+export const tenantsRouter: Router = Router();
 
 /**
  * GET /api/v1/tenants/me

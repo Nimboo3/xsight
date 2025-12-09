@@ -419,7 +419,7 @@ The shop must be registered through the OAuth flow.
 export const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
 // Create router for Swagger UI
-export const swaggerRouter = Router();
+export const swaggerRouter: Router = Router();
 
 // Serve Swagger UI
 swaggerRouter.use('/', swaggerUi.serve);

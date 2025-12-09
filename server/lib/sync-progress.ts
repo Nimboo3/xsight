@@ -28,7 +28,7 @@ export interface SyncProgress {
   progress: number; // 0-100
   step: string;
   recordsProcessed: number;
-  totalRecords: number;
+  totalRecords: number | null;
   startedAt: string;
   finishedAt: string | null;
   error: string | null;
@@ -94,7 +94,7 @@ export async function createSyncRun(
     progress: progress.progress.toString(),
     step: progress.step,
     recordsProcessed: progress.recordsProcessed.toString(),
-    totalRecords: progress.totalRecords.toString(),
+    totalRecords: (progress.totalRecords ?? 0).toString(),
     startedAt: progress.startedAt,
     finishedAt: '',
     error: '',
@@ -127,7 +127,7 @@ export async function updateSyncProgress(
   if (updates.progress !== undefined) redisUpdates.progress = updates.progress.toString();
   if (updates.step !== undefined) redisUpdates.step = updates.step;
   if (updates.recordsProcessed !== undefined) redisUpdates.recordsProcessed = updates.recordsProcessed.toString();
-  if (updates.totalRecords !== undefined) redisUpdates.totalRecords = updates.totalRecords.toString();
+  if (updates.totalRecords !== undefined && updates.totalRecords !== null) redisUpdates.totalRecords = updates.totalRecords.toString();
   if (updates.error !== undefined) redisUpdates.error = updates.error || '';
   
   // Update Redis hash

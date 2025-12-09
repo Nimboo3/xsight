@@ -14,7 +14,7 @@ import { tenantMiddleware } from '../middleware';
 
 const log = logger.child({ module: 'orders-routes' });
 
-export const ordersRouter = Router();
+export const ordersRouter: Router = Router();
 
 // All routes require tenant context
 ordersRouter.use(tenantMiddleware);

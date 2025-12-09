@@ -336,7 +336,7 @@ async function processCustomerSync(job: Job<CustomerSyncJobData>): Promise<void>
           where: { id: syncJob.id },
           data: {
             recordsProcessed: processed,
-            totalRecords: total,
+            totalRecords: total ?? undefined,
             progressPercent,
           },
         });
@@ -436,7 +436,7 @@ async function processOrderSync(job: Job<OrderSyncJobData>): Promise<void> {
           where: { id: syncJob.id },
           data: {
             recordsProcessed: processed,
-            totalRecords: total,
+            totalRecords: total ?? undefined,
             progressPercent,
           },
         });

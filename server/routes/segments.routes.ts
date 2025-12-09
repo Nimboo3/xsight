@@ -32,7 +32,7 @@ import { previewSegmentCustomers, validateFiltersExecutable } from '../services/
 
 const log = logger.child({ module: 'segments-routes' });
 
-export const segmentsRouter = Router();
+export const segmentsRouter: Router = Router();
 
 // All routes require tenant context
 segmentsRouter.use(tenantMiddleware);
