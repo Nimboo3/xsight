@@ -38,13 +38,9 @@ initializeSentry(app);
 // Trust proxy for rate limiting behind reverse proxy
 app.set('trust proxy', 1);
 
-// Security headers
-app.use(helmet({
-  contentSecurityPolicy: false, // Disable for Shopify embedded apps
-  crossOriginEmbedderPolicy: false,
-}));
-
-// CORS configuration - Allow frontend origins
+// ═══════════════════════════════════════════════════════════════
+// CORS CONFIGURATION - MUST BE BEFORE HELMET
+// ═══════════════════════════════════════════════════════════════
 const allowedOrigins = config.isDev
   ? ['http://localhost:3001', 'http://localhost:3000', /\.myshopify\.com$/]
   : [
@@ -56,11 +52,51 @@ const allowedOrigins = config.isDev
       /\.myshopify\.com$/,   // Allow Shopify embedded app
     ].filter(Boolean);
 
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Shopify-Shop-Domain', 'X-Request-ID'],
+// Log CORS configuration on startup
+log.info({ 
+  allowedOrigins: allowedOrigins.map(o => o instanceof RegExp ? o.toString() : o),
+  frontendUrl: config.frontendUrl,
+  shopifyAppUrl: config.shopifyAppUrl,
+}, 'CORS configuration initialized');
+
+// Custom CORS handler with logging
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Check if origin is allowed
+  const isAllowed = !origin || allowedOrigins.some(allowed => {
+    if (typeof allowed === 'string') {
+      return origin === allowed;
+    }
+    if (allowed instanceof RegExp) {
+      return allowed.test(origin);
+    }
+    return false;
+  });
+  
+  if (isAllowed && origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Shopify-Shop-Domain, X-Request-ID');
+    res.setHeader('Access-Control-Expose-Headers', 'X-Request-ID');
+    res.setHeader('Access-Control-Max-Age', '86400');
+  }
+  
+  // Handle preflight OPTIONS request immediately
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+  
+  next();
+});
+
+// Security headers - AFTER CORS
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable for Shopify embedded apps
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
 // Request ID middleware (first to ensure all logs have request ID)
