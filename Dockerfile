@@ -53,7 +53,7 @@ COPY prisma ./prisma/
 RUN pnpm install --frozen-lockfile
 
 # Generate Prisma client in production stage
-RUN pnpm prisma generate
+RUN npx prisma generate
 
 # Copy built server
 COPY --from=server-builder /app/dist ./dist
