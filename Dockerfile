@@ -52,8 +52,8 @@ COPY prisma ./prisma/
 # Install ALL dependencies (needed for Prisma client generation)
 RUN pnpm install --frozen-lockfile
 
-# Generate Prisma client in production stage
-RUN npx prisma generate
+# Generate Prisma client in production stage using pnpm exec
+RUN pnpm exec prisma generate
 
 # Copy built server
 COPY --from=server-builder /app/dist ./dist
